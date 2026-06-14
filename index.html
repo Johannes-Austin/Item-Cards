@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D Card Maker</title>
+    <!-- Fonts and CSV Parser -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        /* UI STYLING */
+        body { font-family: 'Roboto', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
+        .ui-container { max-width: 1200px; margin: 0 auto; display: flex; gap: 20px; flex-wrap: wrap; }
+        .panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .catalog-panel { flex: 2; min-width: 300px; }
+        .queue-panel { flex: 1; min-width: 300px; position: sticky; top: 20px; height: fit-content; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #ddd; }
+        tr.item-row { cursor: pointer; transition: background 0.2s; }
+        tr.item-row:hover { background-color: #e9ecef; }
+        
+        input[type="text"], input[type="file"] { width: 100%; padding: 10px; margin-bottom: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        
+        .filter-group { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 15px; font-size: 14px; background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #eee; }
+        .filter-group label { cursor: pointer; display: flex; align-items: center; gap: 4px; }
+
+        button { background: #0d6efd; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:hover { background: #0b5ed7; }
+        .btn-add { background: #198754; }
+        .btn-add:hover { background: #157347; }
+        .btn-remove { background: #dc3545; padding: 5px 10px; font-size: 12px; }
+        .btn-remove:hover { background: #bb2d3b; }
+        .btn-secondary { background: #6c757d; }
+        .btn-secondary:hover { background: #5c636a; }
+        
+        .queue-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+
+        /* MODAL STYLING */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 8px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 5px 15px rgba(0,0,0,0.3); position: relative; }
+        .modal-close { position: absolute; top: 15px; right: 15px; background: none; color: #333; font-size: 20px; padding: 0; }
+        .modal-close:hover { background: none; color: red; }
+        .modal-tag { display: inline-block; background: #eee; padding: 3px 8px; border-radius: 4px; font-size: 12px; margin-right: 5px; margin-bottom: 10px; font-weight: bold; }
+
+        /* PRINT STYLING (Extracted out of media print so JS can measure accurately) */
+        .print-container { display: none; }
+        
+        .layout-sheet {
+            display: grid;
+            grid-template-columns: repeat(3, 2.5in);
+            grid-template-rows: repeat(3, 3.5in);
+            justify-content: center;
+            align-content: center;
+            width: 8.5in;
+            height: 11in;
+            page-break-after: always;
+            background: white;
+        }
+
+        .layout-single {
+            display: block;
+            width: 2.5in;
+            height: 3.5in;
+            page-break-after: always;
+            background: white;
+        }
+
+        .card {
+            width: 2.5in;
+            height: 3.5in;
+            position: relative;
+            background-size: cover;
+            background-position: center;
+            overflow: hidden;
+            color: black;
+            box-sizing: border-box;
+        }
+
+        .box { position: absolute; left: 8%; width: 84%; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden; }
+        .dynamic-text { width: 100%; text-align: center; }
+        
+        .box-name { top: 3%; height: 11%; font-family: 'Cinzel', serif; font-weight: bold; line-height: 1.0; }
+        .box-type { top: 12%; height: 5%; font-size: 8pt; font-style: italic; }
+        .box-attunement { top: 16%; height: 5%; font-size: 7pt; font-weight: bold; }
+        .box-desc { top: 23%; height: 69%; font-size: 9pt; line-height: 1.1; justify-content: flex-start; }
+        .box-desc .dynamic-text { text-align: left; }
+        .box-source { bottom: 2.5%; height: 4%; font-size: 5pt; color: #333; justify-content: flex-end; }
+
+        /* Only apply actual print constraints here */
+        @media print {
+            .ui-container, .modal-overlay { display: none !important; }
+            body { margin: 0; padding: 0; background: white; }
+            .print-container { display: block !important; visibility: visible !important; position: static !important; }
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="ui-container">
+    <div class="panel catalog-panel">
+        <h2>📚 Magic Items Database</h2>
+        <input type="file" id="csvFileInput" accept=".csv">
+        <input type="text" id="searchInput" placeholder="Search items by name or type...">
+        
+        <!-- Rarity Filters -->
+        <div class="filter-group" id="rarityFilters">
+            <strong style="width: 100%;">Filter by Rarity:</strong>
+            <label><input type="checkbox" value="common" checked> Common</label>
+            <label><input type="checkbox" value="uncommon" checked> Uncommon</label>
+            <label><input type="checkbox" value="rare" checked> Rare</label>
+            <label><input type="checkbox" value="very rare" checked> Very Rare</label>
+            <label><input type="checkbox" value="legendary" checked> Legendary</label>
+            <label><input type="checkbox" value="artifact" checked> Artifact</label>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table id="catalogTable">
+                <thead><tr><th>Name</th><th>Rarity</th><th>Type</th><th>Action</th></tr></thead>
+                <tbody id="catalogBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="panel queue-panel">
+        <h2>📜 Print Queue (<span id="queueCount">0</span>)</h2>
+        <div id="queueList" style="margin-bottom: 20px; max-height: 400px; overflow-y: auto;"></div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button onclick="prepareAndPrint('sheet')">🖨️ Print Sheet (8.5x11)</button>
+            <button onclick="prepareAndPrint('single')" class="btn-secondary">🃏 Print Singles (2.5x3.5 paper)</button>
+            <button class="btn-remove" onclick="clearQueue()">Clear Queue</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="itemModal" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <button class="modal-close" onclick="closeModal(null, true)">✖</button>
+        <h2 id="modalName" style="font-family: 'Cinzel', serif; margin-top: 0;"></h2>
+        <div><span class="modal-tag" id="modalRarity"></span><span class="modal-tag" id="modalType"></span><span class="modal-tag" id="modalAttunement"></span></div>
+        <hr style="border: 0; border-top: 1px solid #ccc; margin: 15px 0;">
+        <p id="modalDesc" style="white-space: pre-wrap; line-height: 1.5; font-size: 15px;"></p>
+        <p style="font-size: 12px; color: #666; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
+            <em>Source: <span id="modalSource"></span></em>
+        </p>
+    </div>
+</div>
+
+<div class="print-container" id="printContainer"></div>
+
+<script>
+    let allItems = [], printQueue = [];
+
+    // --- 1. Event Listeners ---
+    document.getElementById('csvFileInput').addEventListener('change', (e) => {
+        Papa.parse(e.target.files[0], { header: true, skipEmptyLines: true, complete: (results) => {
+            allItems = results.data.map((item, i) => ({...item, id: i}));
+            applyFilters();
+        }});
+    });
+
+    document.getElementById('searchInput').addEventListener('input', applyFilters);
+    document.querySelectorAll('#rarityFilters input').forEach(cb => cb.addEventListener('change', applyFilters));
+
+    // --- 2. Filter & Render Catalog ---
+    function applyFilters() {
+        const term = document.getElementById('searchInput').value.toLowerCase();
+        const checkedRarities = Array.from(document.querySelectorAll('#rarityFilters input:checked')).map(cb => cb.value);
+
+        const filtered = allItems.filter(item => {
+            const matchesText = (item.Name && item.Name.toLowerCase().includes(term)) || 
+                                (item.Type && item.Type.toLowerCase().includes(term));
+            
+            const itemRarity = (item.Rarity || 'common').toLowerCase().trim();
+            const matchesRarity = checkedRarities.includes(itemRarity);
+
+            return matchesText && matchesRarity;
+        });
+
+        renderCatalog(filtered);
+    }
+
+    function renderCatalog(items) {
+        const tbody = document.getElementById('catalogBody');
+        tbody.innerHTML = items.map(item => `
+            <tr class="item-row" onclick="showItemDetails(${item.id})">
+                <td><strong>${item.Name}</strong></td>
+                <td style="text-transform: capitalize;">${item.Rarity}</td>
+                <td>${item.Type}</td>
+                <td><button class="btn-add" onclick="event.stopPropagation(); addToQueue(${item.id})">+ Add</button></td>
+            </tr>
+        `).join('');
+    }
+
+    // --- 3. Modal Details ---
+    function showItemDetails(id) {
+        const item = allItems.find(i => i.id === id);
+        document.getElementById('modalName').innerText = item.Name;
+        document.getElementById('modalRarity').innerText = item.Rarity;
+        document.getElementById('modalType').innerText = item.Type;
+        document.getElementById('modalAttunement').innerText = item.Attunement;
+        document.getElementById('modalDesc').innerText = item.Description;
+        
+        let sourceHtml = item.Source || 'Unknown';
+        if (item.URL) {
+            sourceHtml += ` - <a href="${item.URL}" target="_blank">View Webpage</a>`;
+        }
+        document.getElementById('modalSource').innerHTML = sourceHtml;
+        
+        document.getElementById('itemModal').style.display = 'flex';
+    }
+
+    function closeModal(e, force) { if (force || e.target.id === 'itemModal') document.getElementById('itemModal').style.display = 'none'; }
+    
+    // --- 4. Queue Management ---
+    function addToQueue(id) { printQueue.push(allItems.find(i => i.id === id)); renderQueue(); }
+    function removeFromQueue(idx) { printQueue.splice(idx, 1); renderQueue(); }
+    function clearQueue() { printQueue = []; renderQueue(); }
+
+    function renderQueue() {
+        document.getElementById('queueCount').innerText = printQueue.length;
+        document.getElementById('queueList').innerHTML = printQueue.map((item, idx) => `
+            <div class="queue-item"><span>${item.Name}</span><button class="btn-remove" onclick="removeFromQueue(${idx})">X</button></div>
+        `).join('');
+    }
+
+    // --- 5. Print Logic & Resizer ---
+    function prepareAndPrint(layout) {
+        if (printQueue.length === 0) return alert("Queue empty!");
+        
+        const styleTag = document.createElement('style');
+        styleTag.innerHTML = layout === 'sheet' ? '@media print { @page { size: letter; margin: 0; } }' : '@media print { @page { size: 2.5in 3.5in; margin: 0; } }';
+        document.head.appendChild(styleTag);
+
+        const printContainer = document.getElementById('printContainer');
+        printContainer.innerHTML = '';
+        
+        const cardsPerPage = layout === 'sheet' ? 9 : 1;
+        for (let i = 0; i < printQueue.length; i += cardsPerPage) {
+            const batch = printQueue.slice(i, i + cardsPerPage);
+            const pageDiv = document.createElement('div');
+            pageDiv.className = layout === 'sheet' ? 'layout-sheet' : 'layout-single';
+
+            batch.forEach(item => {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'card';
+                
+                // Format Rarity to map to files like 'very-rare.png'
+                const rawRarity = (item.Rarity || 'common').toLowerCase().trim();
+                const bgImage = rawRarity.replace(/\s+/g, '-') + '.png';
+                cardDiv.style.backgroundImage = `url('${bgImage}')`;
+                
+                // The text is wrapped in an inner div (.dynamic-text) to accurately measure overflow against its parent (.box)
+                cardDiv.innerHTML = `
+                    <div class="box box-name"><div class="dynamic-text" data-max-size="20">${item.Name}</div></div>
+                    <div class="box box-type"><div class="dynamic-text" data-max-size="9">${item.Type}</div></div>
+                    <div class="box box-attunement"><div class="dynamic-text" data-max-size="8">${item.Attunement !== 'No Attunement' ? item.Attunement : ''}</div></div>
+                    <div class="box box-desc"><div class="dynamic-text" data-max-size="8">${(item.Description || '').replace(/\n/g, '<br>')}</div></div>
+                    <div class="box box-source"><div style="width:100%; text-align:center;">${item.Source || ''}</div></div>
+                `;
+                pageDiv.appendChild(cardDiv);
+            });
+            printContainer.appendChild(pageDiv);
+        }
+
+        // Display temporarily off-screen so JS can accurately measure elements
+        printContainer.style.visibility = 'hidden';
+        printContainer.style.position = 'absolute';
+        printContainer.style.left = '-9999px';
+        printContainer.style.display = 'block';
+        
+        // Wait briefly for the DOM to render the boxes before measuring
+        setTimeout(() => {
+            document.querySelectorAll('.box').forEach(box => {
+                const textEl = box.querySelector('.dynamic-text');
+                if (!textEl) return;
+                
+                let size = parseFloat(textEl.getAttribute('data-max-size'));
+                textEl.style.fontSize = size + 'pt';
+                
+                // Compare the inner text's actual rendered height/width to the parent box's fixed boundary
+                while ((textEl.scrollHeight > box.clientHeight || textEl.scrollWidth > box.clientWidth) && size > 3) {
+                    size -= 0.25;
+                    textEl.style.fontSize = size + 'pt';
+                }
+            });
+
+            // Trigger print prompt after resizing is finished
+            setTimeout(() => { 
+                // Restore visibility so the browser's print service captures it
+                printContainer.style.visibility = 'visible';
+                printContainer.style.position = 'static';
+                printContainer.style.left = '0';
+                
+                window.print(); 
+                
+                // Clean up screen view
+                printContainer.style.display = 'none'; 
+                styleTag.remove(); 
+            }, 100);
+
+        }, 50);
+    }
+</script>
+</body>
+</html>
