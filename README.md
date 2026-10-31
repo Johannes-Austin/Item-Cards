@@ -67,5 +67,6 @@ Use a different CSV with `BuildSingleHtml.BAT --csv MyOtherItems.csv`.
 
 - **Always run step 3 after step 2.** `index.html` only contains the data from the last build.
 - **Other / Varies items:** a few items have no standard rarity on the wiki (for example "unique" or "unknown"). They appear under "Other / Varies" in the page and use the common card background.
+- **Source filter:** the page builds its source list (with item counts) from the `Source` column, so new books and homebrew CSVs appear automatically. An item with several sources, separated by commas, counts under each one. Slightly different spellings of the same book show up as separate entries, so fix those in the data.
 - **Check the results after a big re-run.** Search the page for a few items you know have variants, such as Ioun Stone, Potion of Giant Strength and Ammunition, and make sure they came out as separate items.
 - **The images are not embedded.** `index.html` needs `common.png`, `uncommon.png`, `rare.png`, `very-rare.png`, `legendary.png` and `artifact.png` in the same folder.

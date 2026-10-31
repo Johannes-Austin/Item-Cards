@@ -27,6 +27,17 @@
         .filter-group { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 15px; font-size: 14px; background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #eee; }
         .filter-group label { cursor: pointer; display: flex; align-items: center; gap: 4px; }
 
+        /* Source filter: built from the items' Source column, so new books and homebrew sources appear automatically */
+        .source-filter { margin-bottom: 15px; font-size: 14px; background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #eee; }
+        .source-filter summary { cursor: pointer; font-weight: bold; }
+        .source-filter .source-summary { font-weight: normal; color: #666; font-size: 13px; margin-left: 6px; }
+        .source-actions { display: flex; gap: 6px; margin: 10px 0 8px; }
+        .source-actions button { padding: 2px 10px; font-size: 12px; }
+        .source-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 12px; max-height: 260px; overflow-y: auto; }
+        .source-list label { cursor: pointer; display: flex; align-items: flex-start; gap: 4px; }
+        .source-list input { margin-top: 3px; }
+        .source-count { color: #777; }
+
         button { background: #0d6efd; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         button:hover { background: #0b5ed7; }
         .btn-add { background: #198754; }
@@ -163,6 +174,16 @@
             <label><input type="checkbox" value="other" checked> Other / Varies</label>
         </div>
 
+        <!-- Source Filters (filled in from the items, see renderSourceFilters) -->
+        <details class="source-filter">
+            <summary>Filter by Source:<span class="source-summary" id="sourceSummary"></span></summary>
+            <div class="source-actions">
+                <button class="btn-secondary" onclick="setAllSources(true)">Select all</button>
+                <button class="btn-secondary" onclick="setAllSources(false)">Select none</button>
+            </div>
+            <div class="source-list" id="sourceFilters"></div>
+        </details>
+
         <div style="overflow-x: auto;">
             <table id="catalogTable">
                 <thead><tr><th>Name</th><th>Rarity</th><th>Type</th><th>Action</th></tr></thead>
@@ -217,9 +238,10 @@
         const merged = baseItems.map(it => added.get(itemKey(it)) || it)
             .concat(Array.from(added.entries()).filter(([k]) => !baseKeys.has(k)).map(([, it]) => it));
 
-        allItems = merged.map((item, i) => ({ ...item, id: i }));
+        allItems = merged.map((item, i) => ({ ...item, id: i, sources: itemSources(item) }));
         selectedId = null;
         clearPreview();
+        renderSourceFilters();
         applyFilters();
         updateDataStatus();
     }
@@ -235,6 +257,61 @@
         if (addedItems.length) text += ` + ${addedItems.length} added from ${addedFileNames.join(', ')}`;
         document.getElementById('dataStatusText').textContent = text;
         document.getElementById('clearAdded').style.display = addedItems.length ? 'inline-block' : 'none';
+    }
+
+    // --- Source filter ---
+    // The list of sources is read from the items themselves, so new books and homebrew CSVs show up without editing this file.
+    const UNKNOWN_SOURCE = 'Unknown Source';
+    const uncheckedSources = new Set();   // remembered by name, so ticks survive adding/removing CSV files; new sources start ticked
+
+    // An item can list several sources separated by commas ("Dungeon Master's Guide, Fizban's Treasury of Dragons")
+    function itemSources(item) {
+        const sources = (item.Source || '').split(',').map(s => s.trim()).filter(Boolean);
+        return sources.length ? sources : [UNKNOWN_SOURCE];
+    }
+
+    function renderSourceFilters() {
+        const counts = new Map();
+        allItems.forEach(item => item.sources.forEach(s => counts.set(s, (counts.get(s) || 0) + 1)));
+
+        // Alphabetical, with Unknown Source last
+        const names = Array.from(counts.keys()).sort((a, b) =>
+            (a === UNKNOWN_SOURCE) - (b === UNKNOWN_SOURCE) || a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+        const list = document.getElementById('sourceFilters');
+        list.innerHTML = '';
+        names.forEach(name => {
+            const label = document.createElement('label');
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.value = name;
+            cb.checked = !uncheckedSources.has(name);
+            cb.addEventListener('change', () => {
+                if (cb.checked) uncheckedSources.delete(name); else uncheckedSources.add(name);
+                applyFilters();
+            });
+            const count = document.createElement('span');
+            count.className = 'source-count';
+            count.textContent = `(${counts.get(name)})`;
+            label.append(cb, ` ${name} `, count);
+            list.appendChild(label);
+        });
+    }
+
+    function setAllSources(checked) {
+        document.querySelectorAll('#sourceFilters input').forEach(cb => {
+            cb.checked = checked;
+            if (checked) uncheckedSources.delete(cb.value); else uncheckedSources.add(cb.value);
+        });
+        applyFilters();
+    }
+
+    function updateSourceSummary() {
+        const boxes = document.querySelectorAll('#sourceFilters input');
+        const ticked = Array.from(boxes).filter(cb => cb.checked).length;
+        document.getElementById('sourceSummary').textContent = ticked === boxes.length
+            ? `all ${boxes.length} sources`
+            : `${ticked} of ${boxes.length} sources`;
     }
 
     // --- 1. Event Listeners ---
@@ -295,10 +372,14 @@
             const rarityBucket = STANDARD_RARITIES.includes(itemRarity) ? itemRarity : 'other';
             const matchesRarity = checkedRarities.includes(rarityBucket);
 
-            return matchesText && matchesRarity;
+            // An item with several sources is shown if any of them is ticked
+            const matchesSource = item.sources.some(s => !uncheckedSources.has(s));
+
+            return matchesText && matchesRarity && matchesSource;
         });
 
         renderCatalog(filtered);
+        updateSourceSummary();
     }
 
     function renderCatalog(items) {
