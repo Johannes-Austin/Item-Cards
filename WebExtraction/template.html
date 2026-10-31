@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D Card Maker</title>
+    <!-- Fonts and CSV Parser -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        /* UI STYLING */
+        body { font-family: 'Roboto', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
+        .ui-container { max-width: 1600px; margin: 0 auto; display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+        .panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .preview-panel { flex: 0 0 auto; width: calc(3.5in + 18px); position: sticky; top: 20px; height: fit-content; }
+        .catalog-panel { flex: 2; min-width: 300px; }
+        .queue-panel { flex: 1; min-width: 300px; position: sticky; top: 20px; height: fit-content; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #ddd; }
+        tr.item-row { cursor: pointer; transition: background 0.2s; }
+        tr.item-row:hover { background-color: #e9ecef; }
+        tr.item-row.selected { background-color: #cfe2ff; }
+
+        input[type="text"], input[type="file"] { width: 100%; padding: 10px; margin-bottom: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+
+        .filter-group { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 15px; font-size: 14px; background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #eee; }
+        .filter-group label { cursor: pointer; display: flex; align-items: center; gap: 4px; }
+
+        button { background: #0d6efd; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:hover { background: #0b5ed7; }
+        .btn-add { background: #198754; }
+        .btn-add:hover { background: #157347; }
+        .btn-remove { background: #dc3545; padding: 5px 10px; font-size: 12px; }
+        .btn-remove:hover { background: #bb2d3b; }
+        .btn-secondary { background: #6c757d; }
+        .btn-secondary:hover { background: #5c636a; }
+
+        .queue-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+
+        /* PREVIEW PANEL */
+        .preview-wrap { width: calc(3.5in + 18px); max-height: calc(100vh - 300px); min-height: 3in; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 14px; padding-bottom: 6px; }
+        .preview-slot { width: 3.5in; height: 4.9in; flex: 0 0 auto; position: relative; }
+        .preview-slot .card { transform: scale(1.4); transform-origin: top left; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.35); border-radius: 6px; transition: filter 0.2s; }
+        .preview-slot .card:hover { filter: brightness(1.05); }
+        .preview-placeholder { width: 3.5in; height: 4.9in; display: flex; align-items: center; justify-content: center; text-align: center; color: #888; border: 2px dashed #ccc; border-radius: 8px; box-sizing: border-box; padding: 20px; }
+        .preview-hint { font-size: 12px; color: #777; text-align: center; margin: 10px 0; }
+
+        /* MODAL STYLING */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 8px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 5px 15px rgba(0,0,0,0.3); position: relative; }
+        .modal-close { position: absolute; top: 15px; right: 15px; background: none; color: #333; font-size: 20px; padding: 0; }
+        .modal-close:hover { background: none; color: red; }
+        .modal-tag { display: inline-block; background: #eee; padding: 3px 8px; border-radius: 4px; font-size: 12px; margin-right: 5px; margin-bottom: 10px; font-weight: bold; }
+
+        /* PRINT STYLING (Extracted out of media print so JS can measure accurately) */
+        .print-container { display: none; }
+
+        .layout-sheet {
+            display: grid;
+            grid-template-columns: repeat(3, 2.5in);
+            grid-template-rows: repeat(3, 3.5in);
+            justify-content: center;
+            align-content: center;
+            width: 8.5in;
+            height: 11in;
+            page-break-after: always;
+            background: white;
+        }
+
+        .layout-single {
+            display: block;
+            width: 2.5in;
+            height: 3.5in;
+            page-break-after: always;
+            background: white;
+        }
+
+        .card {
+            width: 2.5in;
+            height: 3.5in;
+            position: relative;
+            background-size: cover;
+            background-position: center;
+            overflow: hidden;
+            color: black;
+            box-sizing: border-box;
+        }
+
+        .box { position: absolute; left: 8%; width: 84%; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden; }
+        .dynamic-text { width: 100%; text-align: center; }
+
+        .box-name { top: 3%; height: 11%; font-family: 'Cinzel', serif; font-weight: bold; line-height: 1.0; }
+        .box-type { top: 12%; height: 5%; font-size: 8pt; font-style: italic; }
+        .box-attunement { top: 16%; height: 5%; font-size: 7pt; font-weight: bold; }
+        .box-attunement .dynamic-text { white-space: nowrap; }  /* always one line; the text shrinks to fit instead */
+        .box-desc { top: 23%; height: 69%; font-size: 9pt; line-height: 1.1; justify-content: flex-start; }
+        .box-desc .dynamic-text { text-align: left; }
+        .box-source { bottom: 2.5%; height: 4%; font-size: 5pt; color: #333; justify-content: flex-end; }
+        .box-source .dynamic-text { white-space: nowrap; }  /* one line; shrinks if the source name is long */
+
+        /* Rendered markdown (tables, bold/italic) inside card descriptions */
+        .box-desc table { width: 100%; border-collapse: collapse; font-size: inherit; margin: 2px 0; }
+        .box-desc th, .box-desc td { border: 1px solid rgba(0,0,0,0.45); padding: 0 2px; text-align: left; line-height: 1.05; vertical-align: top; }
+        .box-desc th { font-weight: bold; background: rgba(0,0,0,0.08); }
+        .box-desc hr { border: 0; border-top: 1px solid rgba(0,0,0,0.4); margin: 2px 0; }
+
+        /* Rendered markdown inside the details window */
+        #modalDesc table { border-collapse: collapse; margin: 10px 0; font-size: 14px; }
+        #modalDesc th, #modalDesc td { border: 1px solid #ccc; padding: 4px 10px; text-align: left; }
+        #modalDesc th { background: #f1f3f5; }
+        #modalDesc hr { border: 0; border-top: 1px solid #ccc; margin: 10px 0; }
+
+        /* Only apply actual print constraints here */
+        @media print {
+            .ui-container, .modal-overlay, .measure-holder { display: none !important; }
+            body { margin: 0; padding: 0; background: white; }
+            .print-container { display: block !important; visibility: visible !important; position: static !important; }
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="ui-container">
+    <!-- Card preview (left) -->
+    <div class="panel preview-panel">
+        <h2 style="margin-top: 0;">🃏 Card Preview</h2>
+        <div id="previewPlaceholder" class="preview-placeholder">Click an item in the list to preview its card here.</div>
+        <div id="previewWrap" class="preview-wrap" style="display: none;"></div>
+        <div id="previewActions" style="display: none;">
+            <div class="preview-hint" id="previewHint">Click the card for full details</div>
+            <button class="btn-add" id="previewAddBtn" style="width: 100%;" onclick="addToQueue(selectedId)">+ Add to Queue</button>
+        </div>
+        <label style="display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 14px; cursor: pointer;">
+            <input type="checkbox" id="breakCards" checked> Break into multiple cards
+        </label>
+    </div>
+
+    <div class="panel catalog-panel">
+        <h2 style="margin-top: 0;">📚 Magic Items Database</h2>
+        <div style="font-size: 13px; color: #555; margin-bottom: 4px;">Add more items from a CSV file (same columns as items.csv):</div>
+        <input type="file" id="csvFileInput" accept=".csv" multiple>
+        <div style="font-size: 13px; color: #555; margin: -4px 0 12px;">
+            <span id="dataStatusText"></span>
+            <button id="clearAdded" class="btn-secondary" style="display: none; padding: 2px 8px; font-size: 12px; margin-left: 6px;" onclick="clearAddedItems()">Remove added items</button>
+        </div>
+        <input type="text" id="searchInput" placeholder="Search items by name or type...">
+
+        <!-- Rarity Filters -->
+        <div class="filter-group" id="rarityFilters">
+            <strong style="width: 100%;">Filter by Rarity:</strong>
+            <label><input type="checkbox" value="common" checked> Common</label>
+            <label><input type="checkbox" value="uncommon" checked> Uncommon</label>
+            <label><input type="checkbox" value="rare" checked> Rare</label>
+            <label><input type="checkbox" value="very rare" checked> Very Rare</label>
+            <label><input type="checkbox" value="legendary" checked> Legendary</label>
+            <label><input type="checkbox" value="artifact" checked> Artifact</label>
+            <label><input type="checkbox" value="other" checked> Other / Varies</label>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table id="catalogTable">
+                <thead><tr><th>Name</th><th>Rarity</th><th>Type</th><th>Action</th></tr></thead>
+                <tbody id="catalogBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="panel queue-panel">
+        <h2 style="margin-top: 0;">📜 Print Queue (<span id="queueCount">0</span>)</h2>
+        <div id="queueList" style="margin-bottom: 20px; max-height: 400px; overflow-y: auto;"></div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button onclick="prepareAndPrint('sheet')">🖨️ Print Sheet (8.5x11)</button>
+            <button onclick="prepareAndPrint('single')" class="btn-secondary">🃏 Print Singles (2.5x3.5 paper)</button>
+            <button class="btn-remove" onclick="clearQueue()">Clear Queue</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="itemModal" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <button class="modal-close" onclick="closeModal(null, true)">✖</button>
+        <h2 id="modalName" style="font-family: 'Cinzel', serif; margin-top: 0;"></h2>
+        <div><span class="modal-tag" id="modalRarity"></span><span class="modal-tag" id="modalType"></span><span class="modal-tag" id="modalAttunement"></span></div>
+        <hr style="border: 0; border-top: 1px solid #ccc; margin: 15px 0;">
+        <div id="modalDesc" style="line-height: 1.5; font-size: 15px;"></div>
+        <p style="font-size: 12px; color: #666; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
+            <em>Source: <span id="modalSource"></span></em>
+        </p>
+    </div>
+</div>
+
+<div class="print-container" id="printContainer"></div>
+
+<!-- The built-in items. build_single_html.py replaces the "" below with the contents of items.csv. -->
+<script id="embeddedCsv" type="application/json">""</script>
+
+<script>
+    let allItems = [], printQueue = [], selectedId = null;
+    const STANDARD_RARITIES = ['common', 'uncommon', 'rare', 'very rare', 'legendary', 'artifact'];
+
+    // Built-in items come embedded in this file (see build_single_html.py). Users can add more items from their own CSV.
+    let baseItems = [], addedItems = [], addedFileNames = [];
+    const hasName = (item) => item && item.Name && item.Name.trim() !== '';
+    const itemKey = (item) => item.Name.trim().toLowerCase() + '|' + (item.Rarity || '').trim().toLowerCase();
+
+    function rebuildItems() {
+        // An added item with the same name and rarity as a built-in item replaces it; everything else is appended
+        const added = new Map();
+        addedItems.forEach(it => added.set(itemKey(it), it));
+        const baseKeys = new Set(baseItems.map(itemKey));
+        const merged = baseItems.map(it => added.get(itemKey(it)) || it)
+            .concat(Array.from(added.entries()).filter(([k]) => !baseKeys.has(k)).map(([, it]) => it));
+
+        allItems = merged.map((item, i) => ({ ...item, id: i }));
+        selectedId = null;
+        clearPreview();
+        applyFilters();
+        updateDataStatus();
+    }
+
+    function clearAddedItems() {
+        addedItems = [];
+        addedFileNames = [];
+        rebuildItems();
+    }
+
+    function updateDataStatus() {
+        let text = baseItems.length ? `${baseItems.length} built-in items` : 'No built-in items. Choose a CSV file to load items.';
+        if (addedItems.length) text += ` + ${addedItems.length} added from ${addedFileNames.join(', ')}`;
+        document.getElementById('dataStatusText').textContent = text;
+        document.getElementById('clearAdded').style.display = addedItems.length ? 'inline-block' : 'none';
+    }
+
+    // --- 1. Event Listeners ---
+    document.getElementById('csvFileInput').addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files);
+        if (!files.length) return;
+        for (const file of files) await addCsvFile(file);
+        e.target.value = '';   // lets the same file be chosen again
+        rebuildItems();
+    });
+
+    // Reads a CSV file chosen by the user and adds its items to the built-in ones
+    async function addCsvFile(file) {
+        // Decode as UTF-8 if valid; otherwise fall back to Windows-1252 (fixes ’ “ ” — showing as garbage)
+        const buffer = await file.arrayBuffer();
+        let text;
+        try {
+            text = new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+        } catch (err) {
+            text = new TextDecoder('windows-1252').decode(buffer);
+        }
+        text = text.replace(/^\uFEFF/, ''); // strip BOM if present
+
+        const results = Papa.parse(text, { header: true, skipEmptyLines: true });
+        if (!results.meta.fields || !results.meta.fields.includes('Name')) {
+            alert(`"${file.name}" needs a header row with a Name column (like items.csv).`);
+            return;
+        }
+        addedItems.push(...results.data.filter(hasName));
+        addedFileNames.push(file.name);
+    }
+
+    document.getElementById('searchInput').addEventListener('input', applyFilters);
+    document.querySelectorAll('#rarityFilters input').forEach(cb => cb.addEventListener('change', applyFilters));
+    document.getElementById('breakCards').addEventListener('change', () => { if (selectedId !== null) showPreview(selectedId); });
+
+    // Web fonts load lazily, but text has to be measured with the real fonts. Request them up front and re-fit once they arrive.
+    const fontsReady = (document.fonts && document.fonts.load)
+        ? Promise.all([
+            document.fonts.load("700 20pt 'Cinzel'"),
+            document.fonts.load("400 9pt 'Roboto'"),
+            document.fonts.load("700 9pt 'Roboto'")
+          ]).catch(() => {})
+        : Promise.resolve();
+    fontsReady.then(() => { if (selectedId !== null) showPreview(selectedId); });
+
+    // --- 2. Filter & Render Catalog ---
+    function applyFilters() {
+        const term = document.getElementById('searchInput').value.toLowerCase();
+        const checkedRarities = Array.from(document.querySelectorAll('#rarityFilters input:checked')).map(cb => cb.value);
+
+        const filtered = allItems.filter(item => {
+            const matchesText = (item.Name && item.Name.toLowerCase().includes(term)) ||
+                                (item.Type && item.Type.toLowerCase().includes(term));
+
+            const itemRarity = (item.Rarity || 'common').toLowerCase().trim();
+            // Anything that isn't one of the six standard rarities (unique, varies, etc.) goes under "Other"
+            const rarityBucket = STANDARD_RARITIES.includes(itemRarity) ? itemRarity : 'other';
+            const matchesRarity = checkedRarities.includes(rarityBucket);
+
+            return matchesText && matchesRarity;
+        });
+
+        renderCatalog(filtered);
+    }
+
+    function renderCatalog(items) {
+        const tbody = document.getElementById('catalogBody');
+        tbody.innerHTML = items.map(item => `
+            <tr class="item-row${item.id === selectedId ? ' selected' : ''}" data-id="${item.id}" onclick="showPreview(${item.id})">
+                <td><strong>${item.Name}</strong></td>
+                <td style="text-transform: capitalize;">${item.Rarity}</td>
+                <td>${item.Type}</td>
+                <td><button class="btn-add" onclick="event.stopPropagation(); addToQueue(${item.id})">+ Add</button></td>
+            </tr>
+        `).join('');
+    }
+
+    // --- 3. Card Building (shared by preview and print) ---
+    // spec = one printable card: { item, descHtml, page, pages, maxSize }  (see getCardSpecs)
+    function buildCard(spec) {
+        const item = spec.item;
+        const cardDiv = document.createElement('div');
+        cardDiv.className = 'card';
+
+        // Format Rarity to map to files like 'very-rare.png'
+        const rawRarity = (item.Rarity || 'common').toLowerCase().trim();
+        // Non-standard rarities (unique, varies, etc.) have no image of their own, so they use common.png
+        const bgImage = STANDARD_RARITIES.includes(rawRarity) ? rawRarity.replace(/\s+/g, '-') + '.png' : 'common.png';
+        cardDiv.style.backgroundImage = `url('${bgImage}')`;
+
+        // The text is wrapped in an inner div (.dynamic-text) to accurately measure overflow against its parent (.box)
+        cardDiv.innerHTML = `
+            <div class="box box-name"><div class="dynamic-text" data-max-size="20">${item.Name}</div></div>
+            <div class="box box-type"><div class="dynamic-text" data-max-size="9">${item.Type}</div></div>
+            <div class="box box-attunement"><div class="dynamic-text" data-max-size="8" data-preferred-min="6">${item.Attunement !== 'No Attunement' ? formatAttunement(item.Attunement) : ''}</div></div>
+            <div class="box box-desc"><div class="dynamic-text" data-max-size="${spec.maxSize || 8}">${spec.descHtml}</div></div>
+            <div class="box box-source"><div class="dynamic-text" data-max-size="5">${item.Source || ''}${spec.pages > 1 ? ` · Card ${spec.page} of ${spec.pages}` : ''}</div></div>
+        `;
+
+        // Attunement text: keep the full wording, plus a shorter wording used only if the full text would get too small
+        const attunementEl = cardDiv.querySelector('.box-attunement .dynamic-text');
+        if (attunementEl.textContent) {
+            attunementEl.dataset.full = attunementEl.textContent;
+            attunementEl.dataset.alt = attunementEl.textContent.replace(/^Requires Attunement by (an? |the )?/i, 'Attunement: ');
+        }
+        return cardDiv;
+    }
+
+    // Shrinks a text block until it fits inside its box; returns the final size in pt
+    function shrinkToFit(box, textEl, maxSize) {
+        let size = maxSize;
+        textEl.style.fontSize = size + 'pt';
+
+        // Compare the inner text's actual rendered height/width to the parent box's fixed boundary
+        while ((textEl.scrollHeight > box.clientHeight || textEl.scrollWidth > box.clientWidth) && size > 3) {
+            size -= 0.25;
+            textEl.style.fontSize = size + 'pt';
+        }
+        return size;
+    }
+
+    // Shrinks each text block until it fits inside its box
+    function fitText(scope) {
+        scope.querySelectorAll('.box').forEach(box => {
+            const textEl = box.querySelector('.dynamic-text');
+            if (!textEl) return;
+
+            const maxSize = parseFloat(textEl.getAttribute('data-max-size'));
+
+            // Start from the full wording each time (a previous fit may have switched to the short one)
+            if (textEl.dataset.full !== undefined) textEl.textContent = textEl.dataset.full;
+
+            const size = shrinkToFit(box, textEl, maxSize);
+
+            // If the full text ended up smaller than its preferred minimum, use the shorter wording and fit again
+            const preferredMin = parseFloat(textEl.getAttribute('data-preferred-min'));
+            if (textEl.dataset.alt && textEl.dataset.alt !== textEl.dataset.full && size < preferredMin) {
+                textEl.textContent = textEl.dataset.alt;
+                shrinkToFit(box, textEl, maxSize);
+            }
+        });
+    }
+
+    // --- Description rendering: turns the scraper's markdown (tables, **bold**, *italic*, headings) into HTML ---
+    // Title case with small words (a, the, by, of, or...) left lowercase, except as first/last word
+    const SMALL_WORDS = new Set(['a', 'an', 'the', 'and', 'but', 'or', 'nor', 'for', 'so', 'yet', 'as', 'at', 'by', 'in', 'of', 'on', 'to', 'up', 'with', 'from']);
+    function titleCase(text) {
+        const words = text.split(/\s+/);
+        return words.map((word, i) => {
+            if (i > 0 && i < words.length - 1 && SMALL_WORDS.has(word.toLowerCase())) return word.toLowerCase();
+            // Capitalize the first letter of the word and of each hyphenated part (half-elf -> Half-Elf)
+            return word.replace(/(^|[-("])([a-z])/g, (m, pre, ch) => pre + ch.toUpperCase());
+        }).join(' ');
+    }
+
+    // Wiki pages write attunement text in mixed case; always show it capitalized, e.g. "Requires Attunement by a Bard, Cleric, or Druid"
+    function formatAttunement(text) {
+        text = (text || '').trim();
+        return text ? titleCase(text) : '';
+    }
+
+    function escapeHtml(s) {
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function inlineMd(s) {
+        return s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>');
+    }
+
+    function splitRow(line) {
+        return line.trim().replace(/^\|/, '').replace(/\|$/, '')
+                   .split(/(?<!\\)\|/)
+                   .map(c => c.trim().replace(/\\\|/g, '|'));
+    }
+
+    function buildTableHtml(tableLines) {
+        const rows = tableLines.map(splitRow);
+        let header = null, body = rows;
+        // Second row like | --- | --- | marks the first row as the header
+        if (rows.length >= 2 && rows[1].every(c => /^:?-{2,}:?$/.test(c))) {
+            header = rows[0];
+            body = rows.slice(2);
+        }
+        let html = '<table class="md-table">';
+        if (header) html += '<thead><tr>' + header.map(c => `<th>${inlineMd(c)}</th>`).join('') + '</tr></thead>';
+        html += '<tbody>' + body.map(r => '<tr>' + r.map(c => `<td>${inlineMd(c)}</td>`).join('') + '</tr>').join('') + '</tbody></table>';
+        return html;
+    }
+
+    // Breaks a description into blocks: text lines, tables and dividers. A 'cont' block continues the previous
+    // text line (used when a long paragraph has to be split between cards).
+    function descriptionBlocks(text) {
+        const lines = escapeHtml(text || '').split(/\r?\n/);
+        const blocks = [];
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            if (/^\s*\|/.test(line)) {                      // table block
+                const tableLines = [];
+                while (i < lines.length && /^\s*\|/.test(lines[i])) tableLines.push(lines[i++]);
+                i--;
+                blocks.push({ kind: 'block', html: buildTableHtml(tableLines) });
+                continue;
+            }
+            if (/^---+\s*$/.test(line)) { blocks.push({ kind: 'block', html: '<hr>' }); continue; }
+
+            // skip blank lines at the start or right after a table/divider
+            if (!line.trim() && (!blocks.length || blocks[blocks.length - 1].kind === 'block')) continue;
+
+            const h = line.match(/^(#{1,6})\s+(.*)$/);
+            if (h) { blocks.push({ kind: 'text', html: '<strong>' + inlineMd(h[2]) + '</strong>' }); continue; }
+
+            blocks.push({ kind: 'text', html: inlineMd(line.replace(/^&gt;\s?/, '')) });  // '>' was escaped above
+        }
+        return blocks;
+    }
+
+    function joinBlocks(blocks) {
+        let html = '';
+        blocks.forEach((b, i) => {
+            if (i > 0) {
+                if (b.kind === 'cont') html += ' ';
+                else if (b.kind === 'text' && blocks[i - 1].kind !== 'block') html += '<br>';
+            }
+            html += b.html;
+        });
+        return html;
+    }
+
+    function renderDescription(text) {
+        return joinBlocks(descriptionBlocks(text));
+    }
+
+    // --- Long items: split across several cards ---
+    // Description text smaller than this is considered too small to read, so the item is too long for one card.
+    const MIN_DESC_PT = 5;
+
+    // A hidden card used to measure whether text fits in the description box
+    let measurer = null;
+    function getMeasurer() {
+        if (!measurer) {
+            const holder = document.createElement('div');
+            holder.className = 'measure-holder';
+            holder.style.cssText = 'position:absolute; left:-9999px; top:0; visibility:hidden; pointer-events:none;';
+            holder.innerHTML = '<div class="card"><div class="box box-desc"><div class="dynamic-text"></div></div></div>';
+            document.body.appendChild(holder);
+            measurer = { box: holder.querySelector('.box-desc'), text: holder.querySelector('.dynamic-text') };
+        }
+        return measurer;
+    }
+
+    function blocksFit(blocks, pt) {
+        const m = getMeasurer();
+        m.text.innerHTML = joinBlocks(blocks);
+        m.text.style.fontSize = pt + 'pt';
+        return m.text.scrollHeight <= m.box.clientHeight && m.text.scrollWidth <= m.box.clientWidth;
+    }
+
+    // Splits a long paragraph into sentences (only when that keeps the bold/italic tags balanced)
+    function splitIntoSentences(block) {
+        if (block.kind === 'block') return [block];
+        const parts = block.html.split(/(?<=[.!?])\s+/);
+        const count = (s, re) => (s.match(re) || []).length;
+        const balanced = parts.every(p => count(p, /<strong>/g) === count(p, /<\/strong>/g) && count(p, /<em>/g) === count(p, /<\/em>/g));
+        if (parts.length < 2 || !balanced) return [block];
+        return parts.map((html, i) => ({ kind: i === 0 ? block.kind : 'cont', html }));
+    }
+
+    // Packs blocks onto cards, filling each card at the given font size before starting the next
+    function paginateBlocks(blocks, pt) {
+        const pages = [];
+        let current = [];
+        const queue = blocks.slice();
+
+        while (queue.length) {
+            const block = queue.shift();
+            const trial = current.concat([block]);
+
+            if (blocksFit(trial, pt)) { current = trial; continue; }
+
+            if (current.length) {            // card is full: start a new one with this block
+                pages.push(current);
+                current = [];
+                queue.unshift(block);
+                continue;
+            }
+
+            // The block doesn't fit even on an empty card: split it into sentences if possible
+            const pieces = splitIntoSentences(block);
+            if (pieces.length > 1) { queue.unshift(...pieces); continue; }
+
+            current = [block];               // can't be split further (e.g. a huge table): it will be shrunk to fit
+        }
+        if (current.length) pages.push(current);
+        return pages;
+    }
+
+    // Returns the printable cards for an item: normally one. If the description is too long for a single card:
+    //  - "Break into multiple cards" ticked: several cards, all at the same text size
+    //  - unticked: one card that says "See <source>"
+    function getCardSpecs(item) {
+        const blocks = descriptionBlocks(item.Description);
+
+        if (blocksFit(blocks, MIN_DESC_PT)) {
+            return [{ item, descHtml: joinBlocks(blocks), page: 1, pages: 1 }];
+        }
+
+        if (!document.getElementById('breakCards').checked) {
+            const source = (item.Source || '').trim();
+            const see = source && source !== 'Unknown Source' ? `See ${source}` : 'See the source book';
+            return [{ item, descHtml: escapeHtml(see), page: 1, pages: 1 }];
+        }
+
+        const pages = paginateBlocks(blocks, MIN_DESC_PT);
+        return pages.map((p, i) => ({ item, descHtml: joinBlocks(p), page: i + 1, pages: pages.length, maxSize: MIN_DESC_PT }));
+    }
+
+    // --- 4. Preview Panel ---
+    function showPreview(id) {
+        const item = allItems.find(i => i.id === id);
+        if (!item) return;
+        selectedId = id;
+
+        const wrap = document.getElementById('previewWrap');
+        wrap.innerHTML = '';
+
+        const specs = getCardSpecs(item);
+        specs.forEach(spec => {
+            const slot = document.createElement('div');
+            slot.className = 'preview-slot';
+            const card = buildCard(spec);
+            card.title = 'Click for full details';
+            card.addEventListener('click', () => showItemDetails(id));
+            slot.appendChild(card);
+            wrap.appendChild(slot);
+        });
+        wrap.scrollTop = 0;
+
+        document.getElementById('previewPlaceholder').style.display = 'none';
+        wrap.style.display = 'flex';
+        document.getElementById('previewActions').style.display = 'block';
+        document.getElementById('previewHint').textContent = specs.length > 1
+            ? `${specs.length} cards. Click a card for full details`
+            : 'Click the card for full details';
+        document.getElementById('previewAddBtn').textContent = specs.length > 1
+            ? `+ Add ${specs.length} Cards to Queue`
+            : '+ Add to Queue';
+
+        fitText(wrap);
+        fontsReady.then(() => fitText(wrap));  // re-fit in case a font was still loading
+
+        document.querySelectorAll('#catalogBody .item-row').forEach(row => {
+            row.classList.toggle('selected', Number(row.dataset.id) === id);
+        });
+    }
+
+    function clearPreview() {
+        document.getElementById('previewWrap').innerHTML = '';
+        document.getElementById('previewWrap').style.display = 'none';
+        document.getElementById('previewActions').style.display = 'none';
+        document.getElementById('previewPlaceholder').style.display = 'flex';
+    }
+
+    // --- 5. Modal Details ---
+    function showItemDetails(id) {
+        const item = allItems.find(i => i.id === id);
+        document.getElementById('modalName').innerText = item.Name;
+        document.getElementById('modalRarity').innerText = item.Rarity;
+        document.getElementById('modalType').innerText = item.Type;
+        document.getElementById('modalAttunement').innerText = formatAttunement(item.Attunement);
+        document.getElementById('modalDesc').innerHTML = renderDescription(item.Description);
+
+        let sourceHtml = item.Source || 'Unknown';
+        if (item.URL) {
+            sourceHtml += ` - <a href="${item.URL}" target="_blank">View Webpage</a>`;
+        }
+        document.getElementById('modalSource').innerHTML = sourceHtml;
+
+        document.getElementById('itemModal').style.display = 'flex';
+    }
+
+    function closeModal(e, force) { if (force || e.target.id === 'itemModal') document.getElementById('itemModal').style.display = 'none'; }
+
+    // --- 6. Queue Management ---
+    // The queue holds individual cards (specs), so a long item adds several entries
+    function addToQueue(id) {
+        const item = allItems.find(i => i.id === id);
+        getCardSpecs(item).forEach(spec => printQueue.push(spec));
+        renderQueue();
+    }
+    function removeFromQueue(idx) { printQueue.splice(idx, 1); renderQueue(); }
+    function clearQueue() { printQueue = []; renderQueue(); }
+
+    function renderQueue() {
+        document.getElementById('queueCount').innerText = printQueue.length;
+        document.getElementById('queueList').innerHTML = printQueue.map((spec, idx) => `
+            <div class="queue-item"><span>${spec.item.Name}${spec.pages > 1 ? ` (${spec.page}/${spec.pages})` : ''}</span><button class="btn-remove" onclick="removeFromQueue(${idx})">X</button></div>
+        `).join('');
+    }
+
+    // --- 7. Print Logic & Resizer ---
+    async function prepareAndPrint(layout) {
+        if (printQueue.length === 0) return alert("Queue empty!");
+        await fontsReady;  // measure text with the real fonts
+
+        const styleTag = document.createElement('style');
+        styleTag.innerHTML = layout === 'sheet' ? '@media print { @page { size: letter; margin: 0; } }' : '@media print { @page { size: 2.5in 3.5in; margin: 0; } }';
+        document.head.appendChild(styleTag);
+
+        const printContainer = document.getElementById('printContainer');
+        printContainer.innerHTML = '';
+
+        const cardsPerPage = layout === 'sheet' ? 9 : 1;
+        for (let i = 0; i < printQueue.length; i += cardsPerPage) {
+            const batch = printQueue.slice(i, i + cardsPerPage);
+            const pageDiv = document.createElement('div');
+            pageDiv.className = layout === 'sheet' ? 'layout-sheet' : 'layout-single';
+
+            batch.forEach(spec => pageDiv.appendChild(buildCard(spec)));
+            printContainer.appendChild(pageDiv);
+        }
+
+        // Display temporarily off-screen so JS can accurately measure elements
+        printContainer.style.visibility = 'hidden';
+        printContainer.style.position = 'absolute';
+        printContainer.style.left = '-9999px';
+        printContainer.style.display = 'block';
+
+        // Wait briefly for the DOM to render the boxes before measuring
+        setTimeout(() => {
+            fitText(printContainer);
+
+            // Trigger print prompt after resizing is finished
+            setTimeout(() => {
+                // Restore visibility so the browser's print service captures it
+                printContainer.style.visibility = 'visible';
+                printContainer.style.position = 'static';
+                printContainer.style.left = '0';
+
+                window.print();
+
+                // Clean up screen view
+                printContainer.style.display = 'none';
+                styleTag.remove();
+            }, 100);
+
+        }, 50);
+    }
+
+    // --- 8. Load the items embedded in this file ---
+    try {
+        const embedded = JSON.parse(document.getElementById('embeddedCsv').textContent || '""');
+        if (embedded) baseItems = Papa.parse(embedded, { header: true, skipEmptyLines: true }).data.filter(hasName);
+    } catch (err) {
+        console.error('Could not read the embedded items:', err);
+    }
+    rebuildItems();
+</script>
+</body>
+</html>
