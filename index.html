@@ -48,6 +48,11 @@
         .btn-secondary { background: #6c757d; }
         .btn-secondary:hover { background: #5c636a; }
 
+        /* Download / Load Queue, side by side. Load Queue is a label styled as a button so it can open the file picker. */
+        .queue-file-row { display: flex; gap: 10px; }
+        .queue-file-row > * { flex: 1; padding-left: 6px; padding-right: 6px; white-space: nowrap; }
+        .queue-load { color: white; padding-top: 10px; padding-bottom: 10px; border-radius: 5px; cursor: pointer; font-weight: bold; text-align: center; font-size: 13.33px; transition: 0.2s; }
+
         /* CSV file box and Create Item button, side by side */
         .data-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 10px; }
         .csv-box { flex: 1; min-width: 220px; font-size: 12px; color: #555; }
@@ -75,6 +80,10 @@
         .queue-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 6px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s; }
         .queue-item:hover { background-color: #e9ecef; }
         .queue-item.selected { background-color: #cfe2ff; }
+        .queue-name { flex: 1; min-width: 0; }
+        .queue-cards { color: #777; font-size: 12px; }
+        .queue-copies { display: flex; align-items: center; gap: 2px; margin: 0 8px; color: #555; cursor: default; }
+        .queue-copies input { width: 48px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; text-align: center; }
 
         /* PREVIEW PANEL */
         .preview-wrap { width: calc(2.5in * var(--card-scale) + 18px); max-height: calc(100vh - 300px); min-height: 3in; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 14px; padding-bottom: 6px; }
@@ -175,7 +184,7 @@
             .catalog-panel, .queue-panel { flex: 1 1 100%; min-width: 0; }
 
             /* Inputs at 16px stop phones from zooming in when they are tapped */
-            input[type="text"], select, textarea { font-size: 16px !important; }
+            input[type="text"], input[type="number"], select, textarea { font-size: 16px !important; }
 
             .data-row { gap: 8px; }
             .data-row > button { width: 100%; }
@@ -300,6 +309,10 @@
         <div style="display: flex; flex-direction: column; gap: 10px;">
             <button onclick="prepareAndPrint('sheet')">🖨️ Print Sheet (8.5x11)</button>
             <button onclick="prepareAndPrint('single')" class="btn-secondary">🃏 Print Singles (2.5x3.5 paper)</button>
+            <div class="queue-file-row">
+                <button class="btn-secondary" onclick="downloadQueue()">⬇ Download Queue</button>
+                <label class="btn-secondary queue-load">📂 Load Queue<input type="file" id="queueFileInput" accept=".csv" hidden></label>
+            </div>
             <button class="btn-remove btn-clear" onclick="clearQueue()">Clear Queue</button>
         </div>
     </div>
@@ -428,16 +441,7 @@
     function downloadAddedItems() {
         const items = allItems.filter(it => it.custom);
         if (!items.length) return alert('There are no added items to download.');
-        const csv = Papa.unparse({ fields: ITEM_COLUMNS, data: items.map(it => ITEM_COLUMNS.map(c => it[c] || '')) });
-        // The BOM makes Excel read the file as UTF-8
-        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = 'my-items.csv';
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+        downloadCsv(items, 'my-items.csv');
     }
 
     function updateDataStatus() {
@@ -527,6 +531,13 @@
 
     // Reads a CSV file chosen by the user and adds its rows as custom items
     async function addCsvFile(file) {
+        const rows = await readCsvRows(file);
+        if (rows) addCustomItems(rows);
+    }
+
+    // Reads a CSV file with a Name column into items with the items.csv columns (plus any extraColumns),
+    // or returns null (after telling the user) if it can't
+    async function readCsvRows(file, extraColumns = []) {
         // Decode as UTF-8 if valid; otherwise fall back to Windows-1252 (fixes ’ “ ” — showing as garbage)
         const buffer = await file.arrayBuffer();
         let text;
@@ -540,14 +551,28 @@
         const results = Papa.parse(text, { header: true, skipEmptyLines: true });
         if (!results.meta.fields || !results.meta.fields.includes('Name')) {
             alert(`"${file.name}" needs a header row with a Name column (like items.csv).`);
-            return;
+            return null;
         }
-        addCustomItems(results.data.filter(hasName).map(row => {
+        return results.data.filter(hasName).map(row => {
             const item = {};
-            ITEM_COLUMNS.forEach(c => item[c] = (row[c] || '').trim());
+            ITEM_COLUMNS.concat(extraColumns).forEach(c => item[c] = (row[c] || '').trim());
             item.Rarity = item.Rarity.toLowerCase();
             return item;
-        }));
+        });
+    }
+
+    // Saves items as a CSV file, by default in the items.csv format
+    function downloadCsv(items, fileName, columns = ITEM_COLUMNS) {
+        const csv = Papa.unparse({ fields: columns, data: items.map(it => columns.map(c => it[c] ?? '')) });
+        // The BOM makes Excel read the file as UTF-8
+        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
     }
 
     document.getElementById('searchInput').addEventListener('input', applyFilters);
@@ -927,45 +952,96 @@
     function closeModal(e, force) { if (force || e.target.id === 'itemModal') document.getElementById('itemModal').style.display = 'none'; }
 
     // --- 6. Queue Management ---
-    // The queue holds individual cards (specs), so a long item adds several entries
+    // Each queue entry is one item: its cards (specs; a long item has several) and how many copies of them to print
+    const MAX_COPIES = 99;
+    function queueEntry(item, copies) {
+        return { item, specs: getCardSpecs(item), copies: Math.min(Math.max(parseInt(copies, 10) || 1, 1), MAX_COPIES) };
+    }
+    // Every card to print, in queue order, with the copies of an item next to each other
+    const queuedCards = () => printQueue.flatMap(entry => Array.from({ length: entry.copies }, () => entry.specs).flat());
+
+    // Adding an item that's already queued adds a copy to it; otherwise it's added with 1 copy
     function addToQueue(id) {
         const item = allItems.find(i => i.id === id);
-        getCardSpecs(item).forEach(spec => printQueue.push(spec));
+        const queued = printQueue.find(entry => itemKey(entry.item) === itemKey(item));
+        if (queued) queued.copies = Math.min(queued.copies + 1, MAX_COPIES);
+        else printQueue.push(queueEntry(item, 1));
         renderQueue();
     }
     function removeFromQueue(idx) { printQueue.splice(idx, 1); renderQueue(); }
     function clearQueue() { printQueue = []; renderQueue(); }
 
+    function setCopies(idx, input) {
+        const entry = printQueue[idx];
+        entry.copies = queueEntry(entry.item, input.value).copies;
+        if (input.value !== '') input.value = entry.copies;   // leave an emptied box alone while the user is typing
+        updateQueueCount();
+    }
+
+    // Downloads the queue as a CSV with one row per queue entry and a Copies column, plus every item column,
+    // so the file can be loaded again even where the item isn't in the list
+    function downloadQueue() {
+        if (!printQueue.length) return alert('The print queue is empty.');
+        downloadCsv(printQueue.map(entry => ({ ...entry.item, Copies: entry.copies })), 'print-queue.csv', QUEUE_COLUMNS);
+    }
+    const QUEUE_COLUMNS = ['Name', 'Copies', ...ITEM_COLUMNS.slice(1)];
+
+    // Adds every row of a queue CSV to the end of the queue. A row matching an item in the list (same name and rarity,
+    // or the same name when the file has no rarity) uses that item; any other row is printed from the file's own details.
+    document.getElementById('queueFileInput').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        e.target.value = '';   // lets the same file be chosen again
+        if (!file) return;
+        const rows = await readCsvRows(file, ['Copies']);
+        if (!rows) return;
+        let fromFile = 0;
+        rows.forEach(row => {
+            const { Copies, ...details } = row;   // no Copies column means 1 copy
+            const item = allItems.find(it => itemKey(it) === itemKey(details))
+                || (!details.Rarity && allItems.find(it => it.Name.trim().toLowerCase() === details.Name.toLowerCase()));
+            if (!item) fromFile++;
+            printQueue.push(queueEntry(item || details, Copies));
+        });
+        renderQueue();
+        if (fromFile) alert(fromFile === 1
+            ? `1 item in "${file.name}" isn't in the item list, so it was queued using the details in the file.`
+            : `${fromFile} items in "${file.name}" aren't in the item list, so they were queued using the details in the file.`);
+    });
+
     function renderQueue() {
-        document.getElementById('queueCount').innerText = printQueue.length;
-        document.getElementById('mobileQueueCount').innerText = printQueue.length;
-        document.getElementById('queueList').innerHTML = printQueue.map((spec, idx) => `
-            <div class="queue-item" data-idx="${idx}" title="Click to preview" onclick="showQueuedCard(${idx})"><span>${spec.item.Name}${spec.pages > 1 ? ` (${spec.page}/${spec.pages})` : ''}</span><button class="btn-remove" onclick="event.stopPropagation(); removeFromQueue(${idx})">X</button></div>
+        document.getElementById('queueList').innerHTML = printQueue.map((entry, idx) => `
+            <div class="queue-item" data-idx="${idx}" title="Click to preview" onclick="showQueuedCard(${idx})">
+                <span class="queue-name">${escapeHtml(entry.item.Name)}${entry.specs.length > 1 ? ` <span class="queue-cards">(${entry.specs.length} cards)</span>` : ''}</span>
+                <label class="queue-copies" onclick="event.stopPropagation()" title="Copies to print">×<input type="number" min="1" max="${MAX_COPIES}" value="${entry.copies}" aria-label="Copies of ${escapeHtml(entry.item.Name).replace(/"/g, '&quot;')}" oninput="setCopies(${idx}, this)" onchange="this.value = printQueue[${idx}].copies"></label>
+                <button class="btn-remove" onclick="event.stopPropagation(); removeFromQueue(${idx})">X</button>
+            </div>
         `).join('');
+        updateQueueCount();
         highlightQueue();
     }
 
-    // Shows a queued card in the preview panel, scrolled to that card if the item takes several
-    function showQueuedCard(idx) {
-        const spec = printQueue[idx];
-        // The list is renumbered when items are added or changed, so look the item up again by name and rarity if needed
-        const item = allItems.find(i => i === spec.item) || allItems.find(i => itemKey(i) === itemKey(spec.item));
-        if (!item) return alert(`"${spec.item.Name}" is no longer in the item list, so it can't be previewed. It will still print.`);
-        selectItem(item.id);
+    // The count is the number of cards that will print
+    function updateQueueCount() {
+        const cards = queuedCards().length;
+        document.getElementById('queueCount').innerText = cards;
+        document.getElementById('mobileQueueCount').innerText = cards;
+    }
 
-        const wrap = document.getElementById('previewWrap');
-        const slot = wrap.querySelectorAll('.preview-slot')[spec.page - 1];
-        if (!slot) return;
-        if (phoneLayout.matches) slot.scrollIntoView({ block: 'start' });   // the whole sheet scrolls on phones
-        else wrap.scrollTop = slot.offsetTop - wrap.firstElementChild.offsetTop;
+    // Shows a queued item in the preview panel
+    function showQueuedCard(idx) {
+        const entry = printQueue[idx];
+        // The list is renumbered when items are added or changed, so look the item up again by name and rarity if needed
+        const item = allItems.find(i => i === entry.item) || allItems.find(i => itemKey(i) === itemKey(entry.item));
+        if (!item) return alert(`"${entry.item.Name}" is no longer in the item list, so it can't be previewed. It will still print.`);
+        selectItem(item.id);
     }
 
     // Highlights the queue entries for the item shown in the preview
     function highlightQueue() {
         const shown = allItems.find(i => i.id === selectedId);
         document.querySelectorAll('#queueList .queue-item').forEach(row => {
-            const spec = printQueue[Number(row.dataset.idx)];
-            row.classList.toggle('selected', !!shown && itemKey(spec.item) === itemKey(shown));
+            const entry = printQueue[Number(row.dataset.idx)];
+            row.classList.toggle('selected', !!shown && itemKey(entry.item) === itemKey(shown));
         });
     }
 
@@ -1189,7 +1265,8 @@
 
     // --- 8. Print Logic & Resizer ---
     async function prepareAndPrint(layout) {
-        if (printQueue.length === 0) return alert("Queue empty!");
+        const cards = queuedCards();
+        if (cards.length === 0) return alert("Queue empty!");
         await fontsReady;  // measure text with the real fonts
 
         const styleTag = document.createElement('style');
@@ -1200,8 +1277,8 @@
         printContainer.innerHTML = '';
 
         const cardsPerPage = layout === 'sheet' ? 9 : 1;
-        for (let i = 0; i < printQueue.length; i += cardsPerPage) {
-            const batch = printQueue.slice(i, i + cardsPerPage);
+        for (let i = 0; i < cards.length; i += cardsPerPage) {
+            const batch = cards.slice(i, i + cardsPerPage);
             const pageDiv = document.createElement('div');
             pageDiv.className = layout === 'sheet' ? 'layout-sheet' : 'layout-single';
 
