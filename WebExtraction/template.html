@@ -147,6 +147,35 @@
         .modal-content { background: white; padding: 30px; border-radius: 8px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 5px 15px rgba(0,0,0,0.3); position: relative; }
         .modal-close { position: absolute; top: 15px; right: 15px; background: none; color: #333; font-size: 20px; padding: 0; }
         .modal-close:hover { background: none; color: red; }
+
+        /* Generate Queue window */
+        .btn-generate { background: #6f42c1; }
+        .btn-generate:hover { background: #59359a; }
+        .modal-content.generator-content { max-width: 560px; max-height: 90vh; display: flex; flex-direction: column; gap: 12px; box-sizing: border-box; }
+        .gen-form { display: none; flex-direction: column; gap: 10px; }
+        .gen-form.active { display: flex; }
+        .gen-form label { display: flex; flex-direction: column; gap: 3px; font-size: 13px; font-weight: bold; color: #444; }
+        .gen-form input[type="number"], .gen-form select { width: 100%; margin: 0; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font: inherit; font-size: 14px; font-weight: normal; }
+        .gen-form label.editor-check { flex-direction: row; align-items: center; gap: 6px; font-weight: normal; cursor: pointer; }
+        .gen-row-pair { display: flex; gap: 10px; }
+        .gen-row-pair > label { flex: 1; }
+        .gen-results { display: none; flex-direction: column; gap: 8px; border-top: 1px solid #ddd; padding-top: 10px; min-height: 0; }
+        .gen-results.active { display: flex; }
+        .gen-results-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+        .gen-hint { font-size: 12px; color: #777; }
+        .gen-list { overflow-y: auto; max-height: 40vh; border: 1px solid #eee; border-radius: 6px; }
+        .gen-item { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-bottom: 1px solid #f0f0f0; }
+        .gen-item:last-child { border-bottom: none; }
+        .gen-item-text { flex: 1; min-width: 0; }
+        .gen-item-name { font-weight: bold; cursor: pointer; }
+        .gen-item-name:hover { text-decoration: underline; }
+        .gen-item-meta { font-size: 12px; color: #666; }
+        .gen-item.swapped { animation: gen-flash 1.2s ease-out; }
+        @keyframes gen-flash { from { background: #d1e7dd; } to { background: transparent; } }
+        .gen-note { font-size: 12px; color: #a15c00; }
+        .gen-note:empty { display: none; }
+        .gen-footer { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+        #itemModal { z-index: 1100; }   /* item details can open on top of the generator */
         .modal-tag { display: inline-block; background: #eee; padding: 3px 8px; border-radius: 4px; font-size: 12px; margin-right: 5px; margin-bottom: 10px; font-weight: bold; }
         .modal-tag:empty { display: none; }
 
@@ -276,6 +305,10 @@
             /* Item editor: full screen, with Edit / Preview tabs instead of side by side */
             .modal-overlay { align-items: stretch; }
             .modal-content.editor-content { width: 100%; max-width: none; max-height: none; height: 100%; border-radius: 0; padding: 16px; display: block; overflow-y: auto; }
+            .modal-content.generator-content { width: 100%; max-width: none; max-height: none; height: 100%; border-radius: 0; padding: 16px; }
+            .gen-form input[type="number"], .gen-form select { font-size: 16px; }
+            .gen-list { max-height: none; flex: 1; }
+            .gen-item .btn-remove { padding: 8px 12px; }
             .editor-tabs { display: flex; gap: 6px; margin: 0 48px 14px 0; }
             .editor-tabs button { flex: 1; background: #e9ecef; color: #333; }
             .editor-tabs button.active { background: #0d6efd; color: white; }
@@ -418,6 +451,7 @@
         </div>
         <div id="queueList" style="margin-bottom: 20px; max-height: 400px; overflow-y: auto;"></div>
         <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button class="btn-generate" onclick="openGenerator()">🎲 Generate Queue</button>
             <button onclick="prepareAndPrint('sheet')">🖨️ Print Sheet (8.5x11)</button>
             <button onclick="prepareAndPrint('single')" class="btn-secondary">🃏 Print Singles (2.5x3.5 paper)</button>
             <div class="queue-file-row">
@@ -532,6 +566,93 @@
         </div>
     </div>
 </div>
+<!-- Generate Queue: makes a random shop inventory, treasure pile or spellbook. Removing a result swaps in another. -->
+<div class="modal-overlay" id="generatorModal" onclick="if (event.target === this) closeGenerator()">
+    <div class="modal-content generator-content">
+        <button class="modal-close" onclick="closeGenerator()">✖</button>
+        <h2 style="margin: 0 0 12px;">🎲 Generate Queue</h2>
+        <div class="kind-tabs" role="tablist">
+            <button role="tab" data-gen="shop" onclick="setGeneratorTab('shop')">🏪 Shop</button>
+            <button role="tab" data-gen="loot" onclick="setGeneratorTab('loot')">💰 Loot</button>
+            <button role="tab" data-gen="spellbook" onclick="setGeneratorTab('spellbook')">📖 Spellbook</button>
+        </div>
+
+        <div class="gen-form" data-gen-form="shop">
+            <label>How many items <input type="number" id="genShopCount" min="1" max="60" value="12"></label>
+            <label>Shop
+                <select id="genShopType">
+                    <option value="general">General Store</option>
+                    <option value="smith">Blacksmith / Armory</option>
+                    <option value="fletcher">Bowyer / Fletcher</option>
+                    <option value="alchemist">Alchemist / Apothecary</option>
+                    <option value="jeweler">Jeweler</option>
+                    <option value="arcane">Arcane Supplies / Scribe</option>
+                    <option value="magic">Magic Shop</option>
+                    <option value="any">Anything</option>
+                </select>
+            </label>
+            <label>How wealthy
+                <select id="genShopWealth">
+                    <option value="poor">Poor (cheap gear, almost no magic)</option>
+                    <option value="modest">Modest</option>
+                    <option value="comfortable" selected>Comfortable</option>
+                    <option value="wealthy">Wealthy</option>
+                    <option value="aristocratic">Aristocratic (rare and very rare magic)</option>
+                </select>
+            </label>
+        </div>
+
+        <div class="gen-form" data-gen-form="loot">
+            <label>How many items <input type="number" id="genLootCount" min="1" max="60" value="6"></label>
+            <label>Party level
+                <select id="genLootTier">
+                    <option value="1">Levels 1–4</option>
+                    <option value="2">Levels 5–10</option>
+                    <option value="3">Levels 11–16</option>
+                    <option value="4">Levels 17–20</option>
+                </select>
+            </label>
+            <label>Kind of loot
+                <select id="genLootKind">
+                    <option value="any">Anything</option>
+                    <option value="arms">Weapons and armor</option>
+                    <option value="consumable">Potions, scrolls and ammunition</option>
+                    <option value="wondrous">Wondrous items and rings</option>
+                </select>
+            </label>
+            <label>Mix
+                <select id="genLootMix">
+                    <option value="magic">Magic items only</option>
+                    <option value="mixed">Some regular gear too</option>
+                </select>
+            </label>
+        </div>
+
+        <div class="gen-form" data-gen-form="spellbook">
+            <label>How many spells <input type="number" id="genSpellCount" min="1" max="80" value="12"></label>
+            <label>Class <select id="genSpellClass"></select></label>
+            <div class="gen-row-pair">
+                <label>Lowest level <select id="genSpellMin"></select></label>
+                <label>Highest level <select id="genSpellMax"></select></label>
+            </div>
+            <label>School <select id="genSpellSchool"></select></label>
+            <label class="editor-check"><input type="checkbox" id="genSpellUA"> Include Unearthed Arcana spells</label>
+        </div>
+
+        <button class="btn-generate gen-run" onclick="runGenerator()">🎲 Generate</button>
+
+        <div class="gen-results" id="genResults">
+            <div class="gen-results-head"><strong id="genResultsTitle"></strong><span class="gen-hint">✖ swaps an entry for a new one</span></div>
+            <div class="gen-list" id="genList"></div>
+            <div class="gen-note" id="genNote"></div>
+            <div class="gen-footer">
+                <button class="btn-secondary" onclick="runGenerator()">↻ Start Over</button>
+                <button class="btn-add" id="genAddBtn" onclick="addGeneratedToQueue()">+ Add to Queue</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <datalist id="typeOptions">
     <option value="Wondrous item"></option><option value="Weapon"></option><option value="Armor"></option>
     <option value="Ring"></option><option value="Potion"></option><option value="Scroll"></option>
@@ -1568,7 +1689,7 @@
     let editorKind = 'magic', editorTitle = null;   // editorTitle: null for a new card (the title then names the kind)
     function setEditorKind(kind) {
         editorKind = kind;
-        document.querySelectorAll('.kind-tabs button').forEach(b => {
+        document.querySelectorAll('#editorModal .kind-tabs button').forEach(b => {
             b.classList.toggle('active', b.dataset.kind === kind);
             b.setAttribute('aria-selected', b.dataset.kind === kind);
         });
@@ -1709,9 +1830,232 @@
     });
     document.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape') return;
-        if (document.getElementById('editorModal').style.display === 'flex') closeEditor();
+        const isOpen = (id) => document.getElementById(id).style.display === 'flex';
+        if (isOpen('itemModal')) closeModal(null, true);
+        else if (isOpen('generatorModal')) closeGenerator();
+        else if (isOpen('editorModal')) closeEditor();
         else openSheet(null);
     });
+
+    // --- 7b. Generate Queue (shop inventory, loot, spellbook) ---
+    // Each generator turns the form into a "picker": a function that returns one more random item that isn't in the
+    // given set of keys yet (or null when nothing is left). The list is built by calling it repeatedly, and removing
+    // an entry calls it once more to fill the gap. Removed entries are remembered so they don't come back.
+    let genTab = 'shop', genPicker = null, genList = [], genRemoved = new Set();
+
+    const pickRandom = (list) => list[Math.floor(Math.random() * list.length)];
+    function pickWeighted(weights) {   // { key: weight } -> a key, chosen in proportion to its weight
+        const entries = Object.entries(weights).filter(([, w]) => w > 0);
+        let roll = Math.random() * entries.reduce((sum, [, w]) => sum + w, 0);
+        for (const [key, w] of entries) { if ((roll -= w) < 0) return key; }
+        return entries.length ? entries[entries.length - 1][0] : null;
+    }
+    const rarityOf = (item) => (item.Rarity || '').trim().toLowerCase();
+
+    // A random magic item from the pool, its rarity picked by the weights; rarities with nothing left are skipped
+    function pickMagic(pool, rarityWeights, used) {
+        const left = pool.filter(item => !used.has(itemKey(item)));
+        const weights = {};
+        Object.entries(rarityWeights).forEach(([rarity, w]) => { if (left.some(item => rarityOf(item) === rarity)) weights[rarity] = w; });
+        const rarity = pickWeighted(weights);
+        return rarity ? pickRandom(left.filter(item => rarityOf(item) === rarity)) : null;
+    }
+    function pickAny(pool, used) {
+        const left = pool.filter(item => !used.has(itemKey(item)));
+        return left.length ? pickRandom(left) : null;
+    }
+
+    // "1,500 gp" -> 1500, "5 sp" -> 0.5; NaN when there is no price
+    function costInGp(item) {
+        const match = (item.Attunement || '').replace(/,/g, '').match(/([\d.]+)\s*(cp|sp|ep|gp|pp)/i);
+        return match ? Number(match[1]) * { cp: 0.01, sp: 0.1, ep: 0.5, gp: 1, pp: 10 }[match[2].toLowerCase()] : NaN;
+    }
+
+    const typeOrName = (pattern) => (item) => pattern.test(item.Type || '') || pattern.test(item.Name || '');
+    const JEWELRY = /\b(ring|amulet|necklace|brooch|circlet|crown|diadem|gem|jewel|pearl|periapt|medallion|pendant|bracelet|bracers|scarab|talisman|torc|earring|locket|stone|emerald|ruby|sapphire|diamond)\b/i;
+
+    // Shops: which regular items and which magic items each one stocks. magicOnly shops ignore the wealth's magic share.
+    const SHOPS = {
+        general:   { regular: item => ['Adventuring Gear', 'Tools', 'Ammunition'].includes(itemCategory(item)), magic: typeOrName(/potion|wondrous/i) },
+        smith:     { regular: item => ['Weapons', 'Armor', 'Ammunition'].includes(itemCategory(item)), magic: item => /weapon|armor|shield|ammunition/i.test(item.Type || '') },
+        fletcher:  { regular: typeOrName(/\bbow|arrow|bolt|quiver|sling|dart|blowgun|needle|crossbow|ammunition/i), magic: typeOrName(/\bbow|arrow|bolt|quiver|sling|ammunition|crossbow/i) },
+        alchemist: { regular: item => ['Poisons', 'Explosives'].includes(itemCategory(item)) || /\b(acid|alchemist's|antitoxin|healer's|oil|holy water|perfume|vial|flask|herbalism|poisoner's|bottle)\b/i.test(item.Name), magic: typeOrName(/potion|elixir|philter|\boil of|dust of|salve|ointment|incense/i) },
+        // (not Ring Mail or a ruby-studded sword)
+        jeweler:   { regular: item => /\b(amulet|ring|emblem|reliquary|jeweler's|crystal)\b/i.test(item.Name) && itemCategory(item) !== 'Armor',
+                     magic: item => typeOrName(JEWELRY)(item) && !/armor|weapon|shield/i.test(item.Type || '') },
+        arcane:    { regular: item => /focus|holy symbol/i.test(item.Type || '') || /\b(spellbook|component pouch|ink|ink pen|paper|parchment|calligrapher's|book|sealing wax|chalk)\b/i.test(item.Name), magic: typeOrName(/scroll|wand|staff|rod|tome|manual|spellbook|orb|crystal ball/i) },
+        magic:     { regular: () => false, magic: () => true, magicOnly: true },
+        any:       { regular: () => true, magic: () => true },
+    };
+    // Wealth: the share of a shop's stock that is magic, how likely each rarity is, and the most a regular item may cost
+    const WEALTH = {
+        poor:         { magic: 0.05, rarities: { common: 1 }, maxCost: 10 },
+        modest:       { magic: 0.2, rarities: { common: 3, uncommon: 1 }, maxCost: 50 },
+        comfortable:  { magic: 0.4, rarities: { common: 2, uncommon: 3, rare: 1 }, maxCost: 500 },
+        wealthy:      { magic: 0.6, rarities: { uncommon: 3, rare: 3, 'very rare': 1 }, maxCost: Infinity },
+        aristocratic: { magic: 0.75, rarities: { rare: 3, 'very rare': 3, legendary: 1 }, maxCost: Infinity },
+    };
+    function shopPicker() {
+        const shop = SHOPS[document.getElementById('genShopType').value];
+        const wealth = WEALTH[document.getElementById('genShopWealth').value];
+        const magicPool = allItems.filter(item => itemTab(item) === 'magic' && shop.magic(item));
+        // Regular items without a price (modern firearms, ...) aren't sold
+        const regularPool = allItems.filter(item => isMundane(item) && shop.regular(item) && costInGp(item) <= wealth.maxCost);
+        const magicShare = shop.magicOnly ? 1 : wealth.magic;
+        return (used) => {
+            const magicFirst = Math.random() < magicShare;
+            const pickMagicItem = () => pickMagic(magicPool, wealth.rarities, used);
+            const pickRegularItem = () => shop.magicOnly ? null : pickAny(regularPool, used);
+            return magicFirst ? (pickMagicItem() || pickRegularItem()) : (pickRegularItem() || pickMagicItem());
+        };
+    }
+
+    // Loot: rarity by party level (roughly the DMG's treasure tables), filtered by the kind of loot
+    const LOOT_TIERS = {
+        1: { common: 4, uncommon: 3, rare: 1 },
+        2: { common: 1, uncommon: 4, rare: 3, 'very rare': 1 },
+        3: { uncommon: 1, rare: 4, 'very rare': 3, legendary: 1 },
+        4: { rare: 2, 'very rare': 4, legendary: 3 },
+    };
+    const LOOT_KINDS = {
+        any: () => true,
+        arms: item => /weapon|armor|shield|ammunition/i.test(item.Type || '') || ['Weapons', 'Armor', 'Ammunition'].includes(isMundane(item) ? itemCategory(item) : ''),
+        consumable: typeOrName(/potion|scroll|ammunition|arrow|bolt|elixir|philter|\boil\b|dust|bead|poison|explosive|grenade|bomb/i),
+        wondrous: item => /wondrous|ring/i.test(item.Type || '') || (isMundane(item) && JEWELRY.test(item.Name)),
+    };
+    function lootPicker() {
+        const tier = LOOT_TIERS[document.getElementById('genLootTier').value];
+        const kind = LOOT_KINDS[document.getElementById('genLootKind').value];
+        const mixed = document.getElementById('genLootMix').value === 'mixed';
+        const magicPool = allItems.filter(item => itemTab(item) === 'magic' && kind(item));
+        const regularPool = mixed ? allItems.filter(item => isMundane(item) && kind(item)) : [];
+        return (used) => {
+            const magicFirst = !mixed || Math.random() < 0.7;
+            return magicFirst ? (pickMagic(magicPool, tier, used) || pickAny(regularPool, used))
+                              : (pickAny(regularPool, used) || pickMagic(magicPool, tier, used));
+        };
+    }
+
+    // Spellbook: spells of one class (or any) in a level range, spread evenly over the levels that still have spells left
+    const isUnearthedArcana = (item) => /\(UA\)\s*$/.test(item.Name) || /^Unearthed Arcana/i.test(item.Source || '');
+    function spellbookPicker() {
+        const cls = document.getElementById('genSpellClass').value;
+        const min = Number(document.getElementById('genSpellMin').value), max = Number(document.getElementById('genSpellMax').value);
+        const school = document.getElementById('genSpellSchool').value;
+        const allowUA = document.getElementById('genSpellUA').checked;
+        const pool = allItems.filter(item => isSpell(item)
+            && (!cls || spellClasses(item).includes(cls))
+            && spellLevel(item) !== null && spellLevel(item) >= Math.min(min, max) && spellLevel(item) <= Math.max(min, max)
+            && (!school || spellSchool(item) === school)
+            && (allowUA || !isUnearthedArcana(item)));
+        return (used) => {
+            const left = pool.filter(item => !used.has(itemKey(item)));
+            if (!left.length) return null;
+            const level = pickRandom([...new Set(left.map(spellLevel))]);
+            return pickRandom(left.filter(item => spellLevel(item) === level));
+        };
+    }
+    const GENERATORS = { shop: { picker: shopPicker, count: 'genShopCount' }, loot: { picker: lootPicker, count: 'genLootCount' },
+                         spellbook: { picker: spellbookPicker, count: 'genSpellCount' } };
+
+    function openGenerator() {
+        // The spellbook's choices come from the spells themselves (classes, schools)
+        const spells = allItems.filter(isSpell);
+        const fill = (id, options, keep) => {
+            const select = document.getElementById(id), previous = select.value;
+            select.innerHTML = options.map(([value, label]) => `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`).join('');
+            if (keep && options.some(([value]) => value === previous)) select.value = previous;
+        };
+        const classes = [...new Set(spells.flatMap(spellClasses))].sort();
+        fill('genSpellClass', [['', 'Any class'], ...classes.map(c => [c, c])], true);
+        if (!document.getElementById('genSpellClass').dataset.ready && classes.includes('Wizard')) document.getElementById('genSpellClass').value = 'Wizard';
+        document.getElementById('genSpellClass').dataset.ready = '1';
+        const levels = LEVEL_NAMES.map((name, i) => [String(i), i ? `${name} level` : 'Cantrip']);
+        fill('genSpellMin', levels, true);
+        fill('genSpellMax', levels, true);
+        if (!document.getElementById('genSpellMax').dataset.ready) { document.getElementById('genSpellMin').value = '1'; document.getElementById('genSpellMax').value = '3'; }
+        document.getElementById('genSpellMax').dataset.ready = '1';
+        fill('genSpellSchool', [['', 'Any school'], ...[...new Set(spells.map(spellSchool).filter(Boolean))].sort().map(s => [s, s])], true);
+
+        setGeneratorTab(genTab);
+        document.getElementById('generatorModal').style.display = 'flex';
+    }
+    function closeGenerator() { document.getElementById('generatorModal').style.display = 'none'; }
+
+    function setGeneratorTab(tab) {
+        if (tab !== genTab) { genList = []; genPicker = null; }   // a list belongs to the tab that made it
+        genTab = tab;
+        document.querySelectorAll('#generatorModal .kind-tabs button').forEach(b => {
+            b.classList.toggle('active', b.dataset.gen === tab);
+            b.setAttribute('aria-selected', b.dataset.gen === tab);
+        });
+        document.querySelectorAll('.gen-form').forEach(form => form.classList.toggle('active', form.dataset.genForm === tab));
+        renderGeneratorList();
+    }
+
+    function runGenerator() {
+        const generator = GENERATORS[genTab];
+        const count = Math.max(1, Math.min(100, parseInt(document.getElementById(generator.count).value, 10) || 1));
+        genPicker = generator.picker();
+        genRemoved = new Set();
+        genList = [];
+        const used = new Set();
+        while (genList.length < count) {
+            const item = genPicker(used);
+            if (!item) break;
+            used.add(itemKey(item));
+            genList.push(item);
+        }
+        document.getElementById('genNote').textContent = genList.length < count
+            ? (genList.length ? `Only ${genList.length} fit these choices.` : 'Nothing fits these choices. Try a different shop, wealth or level range.') : '';
+        renderGeneratorList();
+    }
+
+    // Removes one entry; another random one (not removed before) takes its place, if any are left
+    function removeGenerated(index) {
+        genRemoved.add(itemKey(genList[index]));
+        const used = new Set([...genRemoved, ...genList.map(itemKey)]);
+        const replacement = genPicker ? genPicker(used) : null;
+        if (replacement) genList[index] = replacement; else genList.splice(index, 1);
+        document.getElementById('genNote').textContent = replacement ? '' : 'Nothing else fits these choices, so that entry was removed without a replacement.';
+        renderGeneratorList(replacement ? index : null);
+    }
+
+    function generatedMeta(item) {
+        if (isSpell(item)) return `${spellLevel(item) ? LEVEL_NAMES[spellLevel(item)] + ' level' : 'Cantrip'} · ${spellSchool(item)}`;
+        if (isMundane(item)) return [item.Attunement, item.Type].filter(Boolean).join(' · ');
+        return [titleCase(item.Rarity || ''), item.Type].filter(Boolean).join(' · ');
+    }
+
+    function renderGeneratorList(swappedIndex = null) {
+        const results = document.getElementById('genResults');
+        results.classList.toggle('active', genPicker !== null);
+        document.getElementById('genResultsTitle').textContent = `${genList.length} ${genTab === 'spellbook' ? (genList.length === 1 ? 'spell' : 'spells') : (genList.length === 1 ? 'item' : 'items')}`;
+        document.getElementById('genList').innerHTML = genList.map((item, i) => `
+            <div class="gen-item${i === swappedIndex ? ' swapped' : ''}">
+                <div class="gen-item-text">
+                    <div class="gen-item-name" title="Show details" onclick="showItemDetails(${item.id})">${escapeHtml(item.Name)}</div>
+                    <div class="gen-item-meta">${escapeHtml(generatedMeta(item))}</div>
+                </div>
+                <button class="btn-remove" title="Remove (another takes its place)" aria-label="Remove ${escapeHtml(item.Name).replace(/"/g, '&quot;')}" onclick="removeGenerated(${i})">✖</button>
+            </div>`).join('');
+        const addBtn = document.getElementById('genAddBtn');
+        addBtn.textContent = `+ Add ${genList.length} to Queue`;
+        addBtn.disabled = !genList.length;
+    }
+
+    function addGeneratedToQueue() {
+        // The list can outlive a change to the item list (e.g. an item edited meanwhile), so look items up again
+        genList.forEach(item => {
+            const current = allItems.find(i => i === item) || allItems.find(i => itemKey(i) === itemKey(item));
+            if (current) addToQueue(current.id);
+        });
+        genList = [];
+        genPicker = null;
+        closeGenerator();
+        renderGeneratorList();
+        if (phoneLayout.matches) openSheet('queue');
+    }
 
     // --- 8. Print Logic & Resizer ---
     async function prepareAndPrint(layout) {
