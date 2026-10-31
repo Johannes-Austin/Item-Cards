@@ -1,5 +1,6 @@
 """
-Builds a single-file version of the card maker by embedding items.csv into template.html.
+Builds a single-file version of the card maker by embedding items.csv (magic items),
+mundaneItems.csv (regular items) and spells.csv (spells) into template.html.
 
     python build_single_html.py
     python build_single_html.py --csv MyOtherItems.csv --out index.html
@@ -26,8 +27,10 @@ OUT_DIR = os.path.dirname(HERE) if os.path.basename(HERE).lower() == "webextract
 
 EXPECTED_COLUMNS = ["Name", "Rarity", "Attunement", "Type", "Source", "Description", "URL", "Notes"]
 
-# The element in index.html that holds the embedded CSV text (as a JSON string)
-PLACEHOLDER = re.compile(r'(<script id="embeddedCsv" type="application/json">)(.*?)(</script>)', re.DOTALL)
+
+def placeholder(element_id):
+    """The element in index.html that holds an embedded CSV text (as a JSON string)"""
+    return re.compile(r'(<script id="' + element_id + r'" type="application/json">)(.*?)(</script>)', re.DOTALL)
 
 
 def read_csv_text(path):
@@ -40,10 +43,28 @@ def read_csv_text(path):
         return raw.decode("cp1252", errors="replace"), "Windows-1252"
 
 
+def check_csv(path):
+    """Reads a CSV and checks it has items; returns (text, encoding, item count)"""
+    csv_text, encoding = read_csv_text(path)
+    reader = csv.DictReader(io.StringIO(csv_text, newline=""))
+    columns = reader.fieldnames or []
+    if "Name" not in columns:
+        sys.exit(f"Error: {path} has no 'Name' column (found: {', '.join(columns) or 'nothing'}).")
+    missing = [c for c in EXPECTED_COLUMNS if c not in columns]
+    if missing:
+        print(f"Warning: {path} is missing these columns: {', '.join(missing)}")
+    item_count = sum(1 for row in reader if (row.get("Name") or "").strip())
+    if item_count == 0:
+        sys.exit(f"Error: {path} has no items.")
+    return csv_text, encoding, item_count
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Embed items.csv into the card maker HTML to make one file.")
+    parser = argparse.ArgumentParser(description="Embed items.csv, mundaneItems.csv and spells.csv into the card maker HTML to make one file.")
     parser.add_argument("--template", default=os.path.join(HERE, "template.html"), help="the card maker template HTML (default: template.html)")
-    parser.add_argument("--csv", default=os.path.join(HERE, "items.csv"), help="the items CSV to embed (default: items.csv)")
+    parser.add_argument("--csv", default=os.path.join(HERE, "items.csv"), help="the magic items CSV to embed (default: items.csv)")
+    parser.add_argument("--mundane-csv", default=os.path.join(HERE, "mundaneItems.csv"), help="the regular items CSV to embed (default: mundaneItems.csv; skipped if it doesn't exist)")
+    parser.add_argument("--spells-csv", default=os.path.join(HERE, "spells.csv"), help="the spells CSV to embed (default: spells.csv; skipped if it doesn't exist)")
     parser.add_argument("--out", default=os.path.join(OUT_DIR, "index.html"), help="the HTML file to create (default: index.html in the main CardHTML folder)")
     args = parser.parse_args()
 
@@ -54,28 +75,28 @@ def main():
     if os.path.abspath(args.out) == os.path.abspath(args.template):
         sys.exit("Error: the output file would overwrite the template. Choose a different --out name.")
 
-    # --- Read and check the CSV ---
-    csv_text, encoding = read_csv_text(args.csv)
-    reader = csv.DictReader(io.StringIO(csv_text, newline=""))
-    columns = reader.fieldnames or []
-    if "Name" not in columns:
-        sys.exit(f"Error: {args.csv} has no 'Name' column (found: {', '.join(columns) or 'nothing'}).")
-    missing = [c for c in EXPECTED_COLUMNS if c not in columns]
-    if missing:
-        print(f"Warning: the CSV is missing these columns: {', '.join(missing)}")
-    item_count = sum(1 for row in reader if (row.get("Name") or "").strip())
-    if item_count == 0:
-        sys.exit("Error: the CSV has no items.")
+    # (element id, CSV path, label) for each CSV to embed. The regular items and spells are optional.
+    embeds = [("embeddedCsv", args.csv, "magic items")]
+    for element_id, path, label, bat in (("embeddedMundaneCsv", args.mundane_csv, "regular items", "RunMundaneGather.BAT"),
+                                         ("embeddedSpellsCsv", args.spells_csv, "spells", "RunSpellGather.BAT")):
+        if os.path.exists(path):
+            embeds.append((element_id, path, label))
+        else:
+            print(f"Warning: {path} not found, so the page will have no {label}. Run {bat} to create it.")
 
-    # --- Embed it ---
     with open(args.template, "r", encoding="utf-8", newline="") as f:
-        template = f.read()
-    if not PLACEHOLDER.search(template):
-        sys.exit('Error: could not find <script id="embeddedCsv" ...> in the template. Is it the updated template.html?')
+        output = f.read()
 
-    # "<" is written as \u003c so nothing in the data can ever be mistaken for HTML (e.g. "</script>")
-    payload = json.dumps(csv_text, ensure_ascii=False).replace("<", "\\u003c")
-    output = PLACEHOLDER.sub(lambda m: m.group(1) + payload + m.group(3), template, count=1)
+    results = []
+    for element_id, path, label in embeds:
+        csv_text, encoding, item_count = check_csv(path)
+        pattern = placeholder(element_id)
+        if not pattern.search(output):
+            sys.exit(f'Error: could not find <script id="{element_id}" ...> in the template. Is it the updated template.html?')
+        # "<" is written as < so nothing in the data can ever be mistaken for HTML (e.g. "</script>")
+        payload = json.dumps(csv_text, ensure_ascii=False).replace("<", "\\u003c")
+        output = pattern.sub(lambda m: m.group(1) + payload + m.group(3), output, count=1)
+        results.append((element_id, path, label, csv_text, encoding, item_count))
 
     with open(args.out, "w", encoding="utf-8", newline="") as f:
         f.write(output)
@@ -83,12 +104,13 @@ def main():
     # --- Verify by reading the output back ---
     with open(args.out, "r", encoding="utf-8", newline="") as f:
         written = f.read()
-    embedded = json.loads(PLACEHOLDER.search(written).group(2))
-    if embedded != csv_text:
-        sys.exit("Error: the embedded data does not match the CSV. Something went wrong; the output should not be used.")
+    for element_id, path, label, csv_text, encoding, item_count in results:
+        embedded = json.loads(placeholder(element_id).search(written).group(2))
+        if embedded != csv_text:
+            sys.exit(f"Error: the embedded {label} do not match {path}. Something went wrong; the output should not be used.")
+        print(f"Embedded {item_count} {label} from {path} (read as {encoding}).")
 
     size_kb = os.path.getsize(args.out) / 1024
-    print(f"Embedded {item_count} items from {args.csv} (read as {encoding}).")
     print(f"Created {os.path.abspath(args.out)} ({size_kb:,.0f} KB).")
     print("Keep the card background images (common.png, uncommon.png, rare.png, very-rare.png, legendary.png, artifact.png)")
     print("in the same folder as this HTML file.")

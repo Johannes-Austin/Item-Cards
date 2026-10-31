@@ -28,6 +28,50 @@
         .filter-group { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 15px; font-size: 14px; background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #eee; }
         .filter-group label { cursor: pointer; display: flex; align-items: center; gap: 4px; }
 
+        /* Magic Items / Regular Items / Spells */
+        .catalog-tabs { display: flex; gap: 4px; margin-bottom: 15px; border-bottom: 2px solid #0d6efd; }
+        .catalog-tabs button { flex: 1; background: #e9ecef; color: #333; border-radius: 6px 6px 0 0; padding: 10px 8px; }
+        .catalog-tabs button:hover { background: #dee2e6; }
+        .catalog-tabs button.active { background: #0d6efd; color: white; }
+        .tab-count { font-weight: normal; opacity: 0.75; }
+        .catalog-empty { display: none; padding: 30px 10px; text-align: center; color: #666; }
+
+        /* Spell filters: one compact box. Level slider + classes on top, everything else folded under "More filters". */
+        .spell-filters { margin-bottom: 15px; font-size: 14px; background: #f8f9fa; padding: 10px 12px; border-radius: 6px; border: 1px solid #eee; }
+        .spell-filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 6px 0; }
+        .spell-filter-row > strong { min-width: 50px; }
+        .level-label { color: #0d6efd; font-weight: bold; }
+        .link-button { background: none; color: #0d6efd; padding: 0; margin-left: auto; font-weight: normal; font-size: 13px; text-decoration: underline; }
+        .link-button:hover { background: none; color: #0a58ca; }
+        /* Two range inputs stacked on one track; only their thumbs take clicks */
+        .dual-range { position: relative; height: 28px; margin: 0 10px; }
+        .dual-range::before { content: ''; position: absolute; left: 0; right: 0; top: 12px; height: 4px; background: #dee2e6; border-radius: 2px; }
+        .dual-range-fill { position: absolute; top: 12px; height: 4px; background: #0d6efd; border-radius: 2px; }
+        .dual-range input { position: absolute; left: -10px; width: calc(100% + 20px); top: 0; height: 28px; margin: 0; background: none; pointer-events: none; -webkit-appearance: none; appearance: none; }
+        .dual-range input::-webkit-slider-runnable-track { background: none; }
+        .dual-range input::-webkit-slider-thumb { -webkit-appearance: none; pointer-events: auto; width: 20px; height: 20px; border-radius: 50%; background: white; border: 3px solid #0d6efd; cursor: grab; box-sizing: border-box; }
+        .dual-range input::-moz-range-thumb { pointer-events: auto; width: 14px; height: 14px; border-radius: 50%; background: white; border: 3px solid #0d6efd; cursor: grab; }
+        .dual-range input::-moz-range-track { background: none; }
+        .dual-range input:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px rgba(13,110,253,0.35); }
+        .dual-range-ticks { display: flex; justify-content: space-between; margin: -2px 6px 4px; font-size: 11px; color: #777; }
+        .dual-range-ticks span { width: 8px; text-align: center; }
+        /* Toggle pills: a checkbox styled as a button-like chip */
+        .pill-group { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; min-width: 0; }
+        .pill { position: relative; cursor: pointer; }
+        .pill input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+        .pill span { display: inline-block; padding: 3px 9px; border-radius: 12px; border: 1px solid #ced4da; background: white; color: #333; font-size: 13px; user-select: none; }
+        .pill:hover span { border-color: #0d6efd; }
+        .pill input:checked + span { background: #0d6efd; border-color: #0d6efd; color: white; }
+        .pill input:focus-visible + span { box-shadow: 0 0 0 3px rgba(13,110,253,0.35); }
+        .pill .pill-count { opacity: 0.65; font-size: 11px; }
+        .more-filters { margin-top: 8px; border-top: 1px solid #e3e6ea; padding-top: 8px; }
+        .more-filters summary { cursor: pointer; font-weight: bold; }
+        .more-filters-summary { font-weight: normal; color: #0d6efd; font-size: 13px; margin-left: 6px; }
+        .tri-selects { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+        .tri-selects label { display: flex; align-items: center; gap: 4px; }
+        .tri-selects select { padding: 2px 4px; border: 1px solid #ced4da; border-radius: 4px; }
+        .spell-tag { display: inline-block; font-size: 10px; font-weight: bold; color: #555; background: #e9ecef; border-radius: 3px; padding: 0 4px; margin-left: 4px; vertical-align: 1px; }
+
         /* Source filter: built from the items' Source column, so new books and homebrew sources appear automatically */
         .source-filter { margin-bottom: 15px; font-size: 14px; background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #eee; }
         .source-filter summary { cursor: pointer; font-weight: bold; }
@@ -68,6 +112,11 @@
         .editor-form textarea { min-height: 200px; resize: vertical; line-height: 1.4; }
         .editor-form input:disabled { background: #f1f3f5; color: #999; }
         .editor-row { display: flex; gap: 10px; }
+        .kind-tabs { display: flex; gap: 4px; border-bottom: 2px solid #0d6efd; }
+        .kind-tabs button { flex: 1; background: #e9ecef; color: #333; border-radius: 6px 6px 0 0; padding: 8px 6px; }
+        .kind-tabs button:hover { background: #dee2e6; }
+        .kind-tabs button.active { background: #0d6efd; color: white; }
+        #edSpellFields { display: flex; flex-direction: column; gap: 10px; }
         .editor-row > label { flex: 1; min-width: 0; }
         .editor-hint { font-size: 12px; color: #777; margin-top: -4px; }
         .editor-form label.editor-check { flex-direction: row; align-items: center; gap: 6px; font-weight: normal; cursor: pointer; }
@@ -99,6 +148,7 @@
         .modal-close { position: absolute; top: 15px; right: 15px; background: none; color: #333; font-size: 20px; padding: 0; }
         .modal-close:hover { background: none; color: red; }
         .modal-tag { display: inline-block; background: #eee; padding: 3px 8px; border-radius: 4px; font-size: 12px; margin-right: 5px; margin-bottom: 10px; font-weight: bold; }
+        .modal-tag:empty { display: none; }
 
         /* PRINT STYLING (Extracted out of media print so JS can measure accurately) */
         .print-container { display: none; }
@@ -189,6 +239,13 @@
             .data-row { gap: 8px; }
             .data-row > button { width: 100%; }
             .filter-group { gap: 8px 12px; }
+            .catalog-tabs button { padding: 10px 4px; font-size: 13px; }
+            /* Spell filters: each label goes above its pills so the pills get the full width */
+            .spell-filter-row { flex-direction: column; align-items: stretch; gap: 4px; margin: 8px 0; }
+            .spell-filter-row:first-child { flex-direction: row; align-items: center; }
+            .pill span { padding: 4px 10px; }
+            .tri-selects select { font-size: 16px !important; }
+            .tab-count { display: block; font-size: 12px; }
             .source-list { grid-template-columns: 1fr; max-height: 220px; }
 
             /* Item list: the Type column moves under the name */
@@ -256,7 +313,7 @@
     </div>
 
     <div class="panel catalog-panel">
-        <h2 style="margin-top: 0;">📚 Magic Items Database</h2>
+        <h2 style="margin-top: 0;">📚 Item Database</h2>
         <div class="data-row">
             <label class="csv-box">Add more items from a CSV file (same columns as items.csv):
                 <input type="file" id="csvFileInput" accept=".csv" multiple>
@@ -270,7 +327,60 @@
         </div>
         <input type="text" id="searchInput" placeholder="Search items by name or type...">
 
-        <!-- Rarity Filters -->
+        <!-- Which list is shown. The preview and print queue are shared, so one print can mix all of them. -->
+        <div class="catalog-tabs" role="tablist">
+            <button role="tab" data-tab="magic" onclick="setTab('magic')">Magic Items <span class="tab-count"></span></button>
+            <button role="tab" data-tab="regular" onclick="setTab('regular')">Regular Items <span class="tab-count"></span></button>
+            <button role="tab" data-tab="spells" onclick="setTab('spells')">Spells <span class="tab-count"></span></button>
+        </div>
+
+        <!-- Category Filters (Regular Items tab) -->
+        <div class="filter-group" id="categoryFilters">
+            <strong style="width: 100%;">Filter by Category:</strong>
+        </div>
+
+        <!-- Spell Filters (Spells tab): level range and classes always shown, the rest folded away under "More filters".
+             In the pill groups nothing picked means everything; picking some narrows the list to those. -->
+        <div class="spell-filters" id="spellFilters">
+            <div class="spell-filter-row">
+                <strong>Level:</strong>
+                <span class="level-label" id="levelLabel"></span>
+                <button class="link-button" id="resetSpellFilters" onclick="resetSpellFilters()">Reset filters</button>
+            </div>
+            <div class="dual-range" id="levelRange">
+                <div class="dual-range-fill" id="levelFill"></div>
+                <input type="range" id="levelMin" min="0" max="9" step="1" value="0" aria-label="Lowest spell level">
+                <input type="range" id="levelMax" min="0" max="9" step="1" value="9" aria-label="Highest spell level">
+            </div>
+            <div class="dual-range-ticks"><span>C</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div>
+            <div class="spell-filter-row">
+                <strong>Class:</strong>
+                <div class="pill-group" id="classPills"></div>
+            </div>
+            <details class="more-filters" id="moreFilters">
+                <summary>More filters <span class="more-filters-summary" id="moreFiltersSummary"></span></summary>
+                <div class="spell-filter-row">
+                    <strong>Components:</strong>
+                    <div class="tri-selects">
+                        <label>V <select data-spell-flag="V"><option value="">Any</option><option value="yes">Has</option><option value="no">Without</option></select></label>
+                        <label>S <select data-spell-flag="S"><option value="">Any</option><option value="yes">Has</option><option value="no">Without</option></select></label>
+                        <label>M <select data-spell-flag="M"><option value="">Any</option><option value="yes">Has</option><option value="no">Without</option></select></label>
+                    </div>
+                </div>
+                <div class="spell-filter-row">
+                    <strong>Other:</strong>
+                    <div class="tri-selects">
+                        <label>Concentration <select data-spell-flag="concentration"><option value="">Any</option><option value="yes">Yes</option><option value="no">No</option></select></label>
+                        <label>Ritual <select data-spell-flag="ritual"><option value="">Any</option><option value="yes">Yes</option><option value="no">No</option></select></label>
+                    </div>
+                </div>
+                <div class="spell-filter-row"><strong>School:</strong><div class="pill-group" id="schoolPills"></div></div>
+                <div class="spell-filter-row"><strong>Casting Time:</strong><div class="pill-group" id="castingPills"></div></div>
+                <div class="spell-filter-row"><strong>Range:</strong><div class="pill-group" id="rangePills"></div></div>
+            </details>
+        </div>
+
+        <!-- Rarity Filters (Magic Items tab) -->
         <div class="filter-group" id="rarityFilters">
             <strong style="width: 100%;">Filter by Rarity:</strong>
             <label><input type="checkbox" value="common" checked> Common</label>
@@ -294,9 +404,10 @@
 
         <div style="overflow-x: auto;">
             <table id="catalogTable">
-                <thead><tr><th>Name</th><th>Rarity</th><th>Type</th><th>Action</th></tr></thead>
+                <thead><tr><th>Name</th><th id="secondColumnHeader">Rarity</th><th id="thirdColumnHeader">Type</th><th>Action</th></tr></thead>
                 <tbody id="catalogBody"></tbody>
             </table>
+            <div class="catalog-empty" id="catalogEmpty"></div>
         </div>
     </div>
 
@@ -347,9 +458,15 @@
         </div>
         <div class="editor-form">
             <h2 id="editorTitle" style="margin: 0;">Create Item</h2>
+            <!-- What kind of card this is; each kind has its own fields below -->
+            <div class="kind-tabs" role="tablist">
+                <button role="tab" data-kind="magic" onclick="setEditorKind('magic')">Magic Item</button>
+                <button role="tab" data-kind="regular" onclick="setEditorKind('regular')">Regular Item</button>
+                <button role="tab" data-kind="spell" onclick="setEditorKind('spell')">Spell</button>
+            </div>
             <label>Name <input type="text" id="edName" placeholder="Sword of Example"></label>
             <div class="editor-row">
-                <label>Rarity
+                <label id="edRarityLabel">Rarity
                     <select id="edRarity">
                         <option value="common">Common</option>
                         <option value="uncommon">Uncommon</option>
@@ -360,9 +477,10 @@
                         <option value="varies">Varies</option>
                     </select>
                 </label>
-                <label>Type <input type="text" id="edType" list="typeOptions" placeholder="Wondrous item"></label>
+                <label id="edTypeLabel">Type <input type="text" id="edType" list="typeOptions" placeholder="Wondrous item"></label>
             </div>
-            <div class="editor-row">
+            <!-- Magic items have attunement; regular items show their cost in the same spot on the card -->
+            <div class="editor-row" id="edAttuneRow">
                 <label>Attunement
                     <select id="edAttune">
                         <option value="">No attunement</option>
@@ -370,6 +488,32 @@
                     </select>
                 </label>
                 <label>Attuned by (optional) <input type="text" id="edAttuneBy" placeholder="a wizard"></label>
+            </div>
+            <div class="editor-row" id="edCostRow">
+                <label>Cost <input type="text" id="edCost" placeholder="15 gp"></label>
+            </div>
+            <!-- Spells: these fields are printed above the description on the card and used by the spell filters -->
+            <div id="edSpellFields">
+                <div class="editor-row">
+                    <label>Level
+                        <select id="edLevel">
+                            <option value="0">Cantrip</option><option value="1">1st</option><option value="2">2nd</option>
+                            <option value="3">3rd</option><option value="4">4th</option><option value="5">5th</option>
+                            <option value="6">6th</option><option value="7">7th</option><option value="8">8th</option><option value="9">9th</option>
+                        </select>
+                    </label>
+                    <label>School <input type="text" id="edSchool" list="schoolOptions" placeholder="Evocation"></label>
+                </div>
+                <label>Classes <input type="text" id="edClasses" placeholder="Sorcerer, Wizard"></label>
+                <div class="editor-row">
+                    <label>Casting Time <input type="text" id="edCastingTime" placeholder="1 action"></label>
+                    <label>Range <input type="text" id="edRange" placeholder="60 feet"></label>
+                </div>
+                <div class="editor-row">
+                    <label>Components <input type="text" id="edComponents" placeholder="V, S, M (a pinch of salt)"></label>
+                    <label>Duration <input type="text" id="edDuration" placeholder="Instantaneous"></label>
+                </div>
+                <label class="editor-check"><input type="checkbox" id="edRitual"> Can be cast as a ritual</label>
             </div>
             <label>Source <input type="text" id="edSource" list="sourceOptions"></label>
             <label>Description <textarea id="edDesc" placeholder="What the item does..."></textarea></label>
@@ -392,13 +536,22 @@
     <option value="Wondrous item"></option><option value="Weapon"></option><option value="Armor"></option>
     <option value="Ring"></option><option value="Potion"></option><option value="Scroll"></option>
     <option value="Staff"></option><option value="Wand"></option><option value="Rod"></option>
+    <option value="Adventuring Gear"></option><option value="Simple Melee Weapon"></option><option value="Martial Melee Weapon"></option>
+    <option value="Simple Ranged Weapon"></option><option value="Martial Ranged Weapon"></option><option value="Light Armor"></option>
+    <option value="Medium Armor"></option><option value="Heavy Armor"></option><option value="Tool"></option><option value="Poison"></option>
 </datalist>
 <datalist id="sourceOptions"></datalist>
+<datalist id="schoolOptions">
+    <option value="Abjuration"></option><option value="Conjuration"></option><option value="Divination"></option><option value="Enchantment"></option>
+    <option value="Evocation"></option><option value="Illusion"></option><option value="Necromancy"></option><option value="Transmutation"></option>
+</datalist>
 
 <div class="print-container" id="printContainer"></div>
 
-<!-- The built-in items. build_single_html.py replaces the "" below with the contents of items.csv. -->
+<!-- The built-in items. build_single_html.py replaces the "" below with the contents of items.csv, mundaneItems.csv and spells.csv. -->
 <script id="embeddedCsv" type="application/json">""</script>
+<script id="embeddedMundaneCsv" type="application/json">""</script>
+<script id="embeddedSpellsCsv" type="application/json">""</script>
 
 <script>
     let allItems = [], printQueue = [], selectedId = null;
@@ -425,6 +578,8 @@
         allItems = merged.map((item, i) => ({ ...item, id: i, sources: itemSources(item) }));
         selectedId = null;
         clearPreview();
+        updateTabCounts();
+        if (currentTab === 'spells') renderSpellFilters();
         renderSourceFilters();
         applyFilters();
         updateDataStatus();
@@ -441,11 +596,13 @@
     function downloadAddedItems() {
         const items = allItems.filter(it => it.custom);
         if (!items.length) return alert('There are no added items to download.');
-        downloadCsv(items, 'my-items.csv');
+        downloadCsv(items, 'my-items.csv', withSpellColumns(ITEM_COLUMNS, items));
     }
 
     function updateDataStatus() {
-        let text = baseItems.length ? `${baseItems.length} built-in items` : 'No built-in items. Choose a CSV file to load items.';
+        const regular = baseItems.filter(isMundane).length, magic = baseItems.length - regular;
+        let text = !baseItems.length ? 'No built-in items. Choose a CSV file to load items.'
+            : `${magic} built-in magic items` + (regular ? `, ${regular} regular items` : '');
         const edited = allItems.filter(it => it.edited).length;
         const custom = allItems.filter(it => it.custom).length - edited;
         if (custom) text += ` + ${custom} custom`;
@@ -468,7 +625,7 @@
 
     function renderSourceFilters() {
         const counts = new Map();
-        allItems.forEach(item => item.sources.forEach(s => counts.set(s, (counts.get(s) || 0) + 1)));
+        tabItems().forEach(item => item.sources.forEach(s => counts.set(s, (counts.get(s) || 0) + 1)));
 
         // Alphabetical, with Unknown Source last
         const names = Array.from(counts.keys()).sort((a, b) =>
@@ -531,7 +688,7 @@
 
     // Reads a CSV file chosen by the user and adds its rows as custom items
     async function addCsvFile(file) {
-        const rows = await readCsvRows(file);
+        const rows = await readCsvRows(file, SPELL_COLUMNS);
         if (rows) addCustomItems(rows);
     }
 
@@ -555,11 +712,15 @@
         }
         return results.data.filter(hasName).map(row => {
             const item = {};
-            ITEM_COLUMNS.concat(extraColumns).forEach(c => item[c] = (row[c] || '').trim());
+            ITEM_COLUMNS.forEach(c => item[c] = (row[c] || '').trim());
+            extraColumns.forEach(c => { if ((row[c] || '').trim()) item[c] = row[c].trim(); });   // only when filled in
             item.Rarity = item.Rarity.toLowerCase();
             return item;
         });
     }
+
+    // The spell columns are added to a downloaded CSV only when it has spells in it
+    const withSpellColumns = (columns, items) => items.some(isSpell) ? columns.concat(SPELL_COLUMNS) : columns;
 
     // Saves items as a CSV file, by default in the items.csv format
     function downloadCsv(items, fileName, columns = ITEM_COLUMNS) {
@@ -589,37 +750,265 @@
         : Promise.resolve();
     fontsReady.then(() => { if (selectedId !== null) showPreview(selectedId); });
 
-    // --- 2. Filter & Render Catalog ---
+    // --- 2. Tabs, Filter & Render Catalog ---
+    // Regular (non-magic) items have the rarity "mundane" and keep their cost in the Attunement column.
+    // Each item belongs to one tab; the preview, editor and print queue are shared by all of them.
+    const isMundane = (item) => (item.Rarity || '').trim().toLowerCase() === 'mundane';
+    // Spells have the rarity "spell" and extra columns (Level, School, CastingTime, Range, Components, Duration, Classes)
+    const isSpell = (item) => (item.Rarity || '').trim().toLowerCase() === 'spell';
+    const itemTab = (item) => isSpell(item) ? 'spells' : isMundane(item) ? 'regular' : 'magic';
+    let currentTab = 'magic';
+    const tabItems = () => allItems.filter(item => itemTab(item) === currentTab);
+
+    function setTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.catalog-tabs button').forEach(b => {
+            b.classList.toggle('active', b.dataset.tab === tab);
+            b.setAttribute('aria-selected', b.dataset.tab === tab);
+        });
+        document.getElementById('rarityFilters').style.display = tab === 'magic' ? '' : 'none';
+        document.getElementById('categoryFilters').style.display = tab === 'regular' ? '' : 'none';
+        document.getElementById('spellFilters').style.display = tab === 'spells' ? '' : 'none';
+        document.getElementById('secondColumnHeader').textContent = { magic: 'Rarity', regular: 'Cost', spells: 'Level' }[tab];
+        document.getElementById('thirdColumnHeader').textContent = tab === 'spells' ? 'School' : 'Type';
+        document.getElementById('searchInput').placeholder = tab === 'spells' ? 'Search spells by name, school or class...' : 'Search items by name or type...';
+        if (tab === 'spells') renderSpellFilters();
+        renderSourceFilters();
+        applyFilters();
+    }
+
+    // Regular items are grouped by their Type: "Martial Melee Weapon" -> Weapons, "Light Armor" -> Armor, ...
+    const REGULAR_CATEGORIES = [
+        ['Weapons', /weapon/i], ['Armor', /armor|shield/i], ['Ammunition', /ammunition/i],
+        ['Tools', /tool|supplies|utensils|kit|gaming set|instrument/i], ['Poisons', /poison/i], ['Explosives', /explosive/i]
+    ];
+    const OTHER_CATEGORY = 'Adventuring Gear';   // gear, packs, containers, clothes, focuses, and anything unrecognized
+    function itemCategory(item) {
+        const match = REGULAR_CATEGORIES.find(([, pattern]) => pattern.test(item.Type || ''));
+        return match ? match[0] : OTHER_CATEGORY;
+    }
+    const uncheckedCategories = new Set();
+    function renderCategoryFilters() {
+        const box = document.getElementById('categoryFilters');
+        box.querySelectorAll('label').forEach(l => l.remove());
+        [OTHER_CATEGORY, ...REGULAR_CATEGORIES.map(([name]) => name)].forEach(name => {
+            const label = document.createElement('label');
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = !uncheckedCategories.has(name);
+            cb.addEventListener('change', () => {
+                if (cb.checked) uncheckedCategories.delete(name); else uncheckedCategories.add(name);
+                applyFilters();
+            });
+            label.append(cb, ` ${name}`);
+            box.appendChild(label);
+        });
+    }
+    renderCategoryFilters();
+
+    // --- Spells ---
+    const SPELL_COLUMNS = ['Level', 'School', 'CastingTime', 'Range', 'Components', 'Duration', 'Classes'];
+    const LEVEL_NAMES = ['Cantrip', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th'];
+
+    // The Level column, or the level read from the Type ("3rd-level Evocation", "Evocation Cantrip"); null if unknown
+    function spellLevel(item) {
+        const n = parseInt(item.Level, 10);
+        if (n >= 0 && n <= 9) return n;
+        if (/cantrip/i.test(item.Type || '')) return 0;
+        const match = (item.Type || '').match(/(\d)(?:st|nd|rd|th)[- ]level/i);
+        return match ? Number(match[1]) : null;
+    }
+    const spellSchool = (item) => titleCase((item.School || (item.Type || '').replace(/cantrip|\d\w*[- ]level|\(.*?\)/gi, '')).trim());
+    // "Druid (Optional)" counts as Druid
+    const spellClasses = (item) => (item.Classes || '').split(',').map(c => c.replace(/\(.*?\)/g, '').trim()).filter(Boolean);
+    const isConcentration = (item) => /concentration/i.test(item.Duration || '');
+    const isRitual = (item) => /ritual/i.test((item.Type || '') + ' ' + (item.CastingTime || ''));
+    function spellComponents(item) {
+        const letters = (item.Components || '').replace(/\(.*$/s, '').toUpperCase();   // drop the material description
+        return { V: /\bV\b/.test(letters), S: /\bS\b/.test(letters), M: /\bM\b/.test(letters) };
+    }
+    function spellSchoolHtml(item) {
+        return escapeHtml(spellSchool(item))
+            + (isConcentration(item) ? '<span class="spell-tag" title="Concentration">C</span>' : '')
+            + (isRitual(item) ? '<span class="spell-tag" title="Ritual">R</span>' : '');
+    }
+
+    // Casting times and ranges are grouped so the filters stay short
+    function castingGroup(item) {
+        const t = (item.CastingTime || '').toLowerCase();
+        if (/bonus action/.test(t)) return 'Bonus Action';
+        if (/reaction/.test(t)) return 'Reaction';
+        if (/\baction\b/.test(t)) return 'Action';
+        if (/minute/.test(t)) return 'Minutes';
+        if (/hour/.test(t)) return 'Hours';
+        return 'Other';
+    }
+    function rangeGroup(item) {
+        const r = (item.Range || '').toLowerCase();
+        if (r.startsWith('self')) return 'Self';
+        if (r.startsWith('touch')) return 'Touch';
+        const match = r.match(/([\d,]+)\s*-?\s*(feet|foot|ft|mile)/);
+        if (!match) return 'Sight / Special';
+        const feet = Number(match[1].replace(/,/g, '')) * (match[2] === 'mile' ? 5280 : 1);
+        return feet <= 30 ? 'Up to 30 ft' : feet <= 60 ? '35–60 ft' : feet <= 120 ? '65–120 ft' : 'Over 120 ft';
+    }
+
+    // Pill groups: nothing picked shows everything; picking some shows spells that match any of them
+    const SPELL_PILL_GROUPS = {
+        classPills: { values: spellClasses },
+        schoolPills: { values: item => [spellSchool(item)].filter(Boolean) },
+        castingPills: { values: item => [castingGroup(item)], order: ['Action', 'Bonus Action', 'Reaction', 'Minutes', 'Hours', 'Other'] },
+        rangePills: { values: item => [rangeGroup(item)], order: ['Self', 'Touch', 'Up to 30 ft', '35–60 ft', '65–120 ft', 'Over 120 ft', 'Sight / Special'] },
+    };
+    const spellPicks = Object.fromEntries(Object.keys(SPELL_PILL_GROUPS).map(id => [id, new Set()]));
+
+    function renderSpellFilters() {
+        const spells = allItems.filter(isSpell);
+        Object.entries(SPELL_PILL_GROUPS).forEach(([id, group]) => {
+            const counts = new Map();
+            spells.forEach(item => group.values(item).forEach(v => counts.set(v, (counts.get(v) || 0) + 1)));
+            spellPicks[id].forEach(v => { if (!counts.has(v)) counts.set(v, 0); });   // a picked value stays visible
+            const names = Array.from(counts.keys()).sort((a, b) => group.order
+                ? group.order.indexOf(a) - group.order.indexOf(b) : a.localeCompare(b));
+            const box = document.getElementById(id);
+            box.innerHTML = '';
+            names.forEach(name => {
+                const label = document.createElement('label');
+                label.className = 'pill';
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = spellPicks[id].has(name);
+                cb.addEventListener('change', () => {
+                    if (cb.checked) spellPicks[id].add(name); else spellPicks[id].delete(name);
+                    applyFilters();
+                });
+                const text = document.createElement('span');
+                text.innerHTML = `${escapeHtml(name)} <span class="pill-count">${counts.get(name)}</span>`;
+                label.append(cb, text);
+                box.appendChild(label);
+            });
+        });
+        updateLevelSlider();
+    }
+
+    const levelMin = document.getElementById('levelMin'), levelMax = document.getElementById('levelMax');
+    function updateLevelSlider(moved) {
+        // The thumbs can meet (one level) but not cross
+        if (Number(levelMin.value) > Number(levelMax.value)) {
+            if (moved === levelMax) levelMax.value = levelMin.value; else levelMin.value = levelMax.value;
+        }
+        const min = Number(levelMin.value), max = Number(levelMax.value);
+        const fill = document.getElementById('levelFill');
+        fill.style.left = (min / 9 * 100) + '%';
+        fill.style.width = ((max - min) / 9 * 100) + '%';
+        // When the thumbs meet, the one that can still move away is put on top
+        levelMin.style.zIndex = min >= 5 ? 3 : 2;
+        levelMax.style.zIndex = min >= 5 ? 2 : 3;
+        const name = (n) => n === 0 ? 'Cantrip' : LEVEL_NAMES[n];
+        document.getElementById('levelLabel').textContent = min === 0 && max === 9 ? 'All levels'
+            : min === max ? name(min) + (min ? ' level' : 's only') : `${name(min)} – ${name(max)}`;
+    }
+    [levelMin, levelMax].forEach(input => input.addEventListener('input', () => { updateLevelSlider(input); applyFilters(); }));
+    document.querySelectorAll('[data-spell-flag]').forEach(select => select.addEventListener('change', applyFilters));
+
+    function spellMatchesFilters(item) {
+        const level = spellLevel(item);
+        const min = Number(levelMin.value), max = Number(levelMax.value);
+        if (level === null ? !(min === 0 && max === 9) : level < min || level > max) return false;
+
+        for (const [id, group] of Object.entries(SPELL_PILL_GROUPS)) {
+            const picks = spellPicks[id];
+            if (picks.size && !group.values(item).some(v => picks.has(v))) return false;
+        }
+
+        const components = spellComponents(item);
+        const flags = { ...components, concentration: isConcentration(item), ritual: isRitual(item) };
+        for (const select of document.querySelectorAll('[data-spell-flag]')) {
+            if (select.value && flags[select.dataset.spellFlag] !== (select.value === 'yes')) return false;
+        }
+        return true;
+    }
+
+    // "More filters (2 active)", and the Reset link shows only when a filter is set
+    function updateSpellFilterSummary() {
+        const flagCount = Array.from(document.querySelectorAll('#moreFilters [data-spell-flag]')).filter(s => s.value).length;
+        const pickCount = ['schoolPills', 'castingPills', 'rangePills'].filter(id => spellPicks[id].size).length;
+        const more = flagCount + pickCount;
+        document.getElementById('moreFiltersSummary').textContent = more ? `(${more} active)` : '';
+        const levelsSet = levelMin.value !== '0' || levelMax.value !== '9';
+        document.getElementById('resetSpellFilters').style.visibility = more || levelsSet || spellPicks.classPills.size ? 'visible' : 'hidden';
+    }
+
+    function resetSpellFilters() {
+        levelMin.value = 0;
+        levelMax.value = 9;
+        Object.values(spellPicks).forEach(set => set.clear());
+        document.querySelectorAll('[data-spell-flag]').forEach(select => select.value = '');
+        renderSpellFilters();
+        applyFilters();
+    }
+
+    // The card and the details window show a spell's casting time, range, components and duration above its text
+    function cardDescription(item) {
+        if (!isSpell(item)) return item.Description || '';
+        const stats = [['Casting Time', item.CastingTime], ['Range', item.Range], ['Components', item.Components], ['Duration', item.Duration]]
+            .filter(([, value]) => (value || '').trim()).map(([label, value]) => `**${label}:** ${value.trim()}`);
+        return stats.concat(item.Description ? [item.Description] : []).join('\n');
+    }
+
+    function updateTabCounts() {
+        const counts = { magic: 0, regular: 0, spells: 0 };
+        allItems.forEach(item => counts[itemTab(item)]++);
+        document.querySelectorAll('.catalog-tabs button').forEach(b => {
+            b.querySelector('.tab-count').textContent = counts[b.dataset.tab] ? `(${counts[b.dataset.tab]})` : '';
+        });
+    }
+
     function applyFilters() {
         const term = document.getElementById('searchInput').value.toLowerCase();
         const checkedRarities = Array.from(document.querySelectorAll('#rarityFilters input:checked')).map(cb => cb.value);
 
-        const filtered = allItems.filter(item => {
+        const filtered = tabItems().filter(item => {
             const matchesText = (item.Name && item.Name.toLowerCase().includes(term)) ||
-                                (item.Type && item.Type.toLowerCase().includes(term));
+                                (item.Type && item.Type.toLowerCase().includes(term)) ||
+                                (isSpell(item) && (item.Classes || '').toLowerCase().includes(term));
 
-            const itemRarity = (item.Rarity || 'common').toLowerCase().trim();
-            // Anything that isn't one of the six standard rarities (unique, varies, etc.) goes under "Other"
-            const rarityBucket = STANDARD_RARITIES.includes(itemRarity) ? itemRarity : 'other';
-            const matchesRarity = checkedRarities.includes(rarityBucket);
+            let matchesGroup;
+            if (currentTab === 'spells') {
+                matchesGroup = spellMatchesFilters(item);
+            } else if (currentTab === 'regular') {
+                matchesGroup = !uncheckedCategories.has(itemCategory(item));
+            } else {
+                const itemRarity = (item.Rarity || 'common').toLowerCase().trim();
+                // Anything that isn't one of the six standard rarities (unique, varies, etc.) goes under "Other"
+                const rarityBucket = STANDARD_RARITIES.includes(itemRarity) ? itemRarity : 'other';
+                matchesGroup = checkedRarities.includes(rarityBucket);
+            }
 
             // An item with several sources is shown if any of them is ticked
             const matchesSource = item.sources.some(s => !uncheckedSources.has(s));
 
-            return matchesText && matchesRarity && matchesSource;
+            return matchesText && matchesGroup && matchesSource;
         });
 
         renderCatalog(filtered);
         updateSourceSummary();
+        if (currentTab === 'spells') updateSpellFilterSummary();
+
+        const empty = document.getElementById('catalogEmpty');
+        empty.textContent = !tabItems().length ? (currentTab === 'spells' ? 'There are no spells here yet.' : 'There are no items here yet.')
+            : !filtered.length ? 'Nothing matches the search and filters.' : '';
+        empty.style.display = empty.textContent ? 'block' : 'none';
     }
 
     function renderCatalog(items) {
         const tbody = document.getElementById('catalogBody');
         tbody.innerHTML = items.map(item => `
             <tr class="item-row${item.id === selectedId ? ' selected' : ''}" data-id="${item.id}" onclick="selectItem(${item.id})">
-                <td><strong>${item.Name}</strong>${item.edited ? '<span class="custom-badge edited">edited</span>' : item.custom ? '<span class="custom-badge">custom</span>' : ''}<div class="mobile-type">${item.Type || ''}</div></td>
-                <td style="text-transform: capitalize;">${item.Rarity}</td>
-                <td>${item.Type}</td>
+                <td><strong>${item.Name}</strong>${item.edited ? '<span class="custom-badge edited">edited</span>' : item.custom ? '<span class="custom-badge">custom</span>' : ''}<div class="mobile-type">${isSpell(item) ? spellSchoolHtml(item) : item.Type || ''}</div></td>
+                ${isSpell(item) ? `<td>${LEVEL_NAMES[spellLevel(item)] ?? '—'}</td>`
+                  : isMundane(item) ? `<td>${escapeHtml(item.Attunement || '—')}</td>` : `<td style="text-transform: capitalize;">${item.Rarity}</td>`}
+                <td>${isSpell(item) ? spellSchoolHtml(item) : item.Type}</td>
                 <td><button class="btn-add" onclick="event.stopPropagation(); addToQueue(${item.id})">+ Add</button></td>
             </tr>
         `).join('');
@@ -635,14 +1024,17 @@
         // Format Rarity to map to files like 'very-rare.png'
         const rawRarity = (item.Rarity || 'common').toLowerCase().trim();
         // Non-standard rarities (unique, varies, etc.) have no image of their own, so they use common.png
-        const bgImage = STANDARD_RARITIES.includes(rawRarity) ? rawRarity.replace(/\s+/g, '-') + '.png' : 'common.png';
+        // Spells have a card for each level (spell-cantrip.png, spell-1.png ... spell-9.png, made by make_spell_cards.ps1)
+        const level = isSpell(item) ? spellLevel(item) : null;
+        const bgImage = level !== null ? (level === 0 ? 'spell-cantrip.png' : `spell-${level}.png`)
+            : STANDARD_RARITIES.includes(rawRarity) ? rawRarity.replace(/\s+/g, '-') + '.png' : 'common.png';
         cardDiv.style.backgroundImage = `url('${bgImage}')`;
 
         // The text is wrapped in an inner div (.dynamic-text) to accurately measure overflow against its parent (.box)
         cardDiv.innerHTML = `
             <div class="box box-name"><div class="dynamic-text" data-max-size="20">${item.Name}</div></div>
             <div class="box box-type"><div class="dynamic-text" data-max-size="9">${item.Type}</div></div>
-            <div class="box box-attunement"><div class="dynamic-text" data-max-size="8" data-preferred-min="6">${item.Attunement !== 'No Attunement' ? formatAttunement(item.Attunement) : ''}</div></div>
+            <div class="box box-attunement"><div class="dynamic-text" data-max-size="8" data-preferred-min="6">${isSpell(item) ? escapeHtml(item.Classes || '') : isMundane(item) ? escapeHtml(item.Attunement || '') : item.Attunement !== 'No Attunement' ? formatAttunement(item.Attunement) : ''}</div></div>
             <div class="box box-desc"><div class="dynamic-text" data-max-size="${spec.maxSize || 8}">${spec.descHtml}</div></div>
             <div class="box box-source"><div class="dynamic-text" data-max-size="5">${item.Source || ''}${spec.pages > 1 ? ` · Card ${spec.page} of ${spec.pages}` : ''}</div></div>
         `;
@@ -851,7 +1243,7 @@
     //  - "Break into multiple cards" ticked: several cards, all at the same text size
     //  - unticked: one card that says "See <source>"
     function getCardSpecs(item) {
-        const blocks = descriptionBlocks(item.Description);
+        const blocks = descriptionBlocks(cardDescription(item));
 
         if (blocksFit(blocks, MIN_DESC_PT)) {
             return [{ item, descHtml: joinBlocks(blocks), page: 1, pages: 1 }];
@@ -877,8 +1269,11 @@
     }
     phoneLayout.addEventListener('change', () => openSheet(null));  // e.g. a phone turned sideways past the phone width
 
-    // An item picked by the user (not just redrawn): on phones this also opens the preview sheet
+    // An item picked by the user (not just redrawn): on phones this also opens the preview sheet.
+    // An item from another tab (from the print queue, or just saved in the editor) switches to its tab.
     function selectItem(id) {
+        const item = allItems.find(i => i.id === id);
+        if (item && itemTab(item) !== currentTab) setTab(itemTab(item));
         if (phoneLayout.matches) openSheet('preview');
         showPreview(id);
     }
@@ -935,10 +1330,11 @@
     function showItemDetails(id) {
         const item = allItems.find(i => i.id === id);
         document.getElementById('modalName').innerText = item.Name;
-        document.getElementById('modalRarity').innerText = item.Rarity;
+        document.getElementById('modalRarity').innerText = isSpell(item) ? 'Spell' : isMundane(item) ? 'Regular item' : item.Rarity;
         document.getElementById('modalType').innerText = item.Type;
-        document.getElementById('modalAttunement').innerText = formatAttunement(item.Attunement);
-        document.getElementById('modalDesc').innerHTML = renderDescription(item.Description);
+        document.getElementById('modalAttunement').innerText = isSpell(item) ? (item.Classes || '')
+            : isMundane(item) ? (item.Attunement ? `Cost: ${item.Attunement}` : '') : formatAttunement(item.Attunement);
+        document.getElementById('modalDesc').innerHTML = renderDescription(cardDescription(item));
 
         let sourceHtml = item.Source || 'Unknown';
         if (item.URL) {
@@ -982,7 +1378,8 @@
     // so the file can be loaded again even where the item isn't in the list
     function downloadQueue() {
         if (!printQueue.length) return alert('The print queue is empty.');
-        downloadCsv(printQueue.map(entry => ({ ...entry.item, Copies: entry.copies })), 'print-queue.csv', QUEUE_COLUMNS);
+        const rows = printQueue.map(entry => ({ ...entry.item, Copies: entry.copies }));
+        downloadCsv(rows, 'print-queue.csv', withSpellColumns(QUEUE_COLUMNS, rows));
     }
     const QUEUE_COLUMNS = ['Name', 'Copies', ...ITEM_COLUMNS.slice(1)];
 
@@ -992,7 +1389,7 @@
         const file = e.target.files[0];
         e.target.value = '';   // lets the same file be chosen again
         if (!file) return;
-        const rows = await readCsvRows(file, ['Copies']);
+        const rows = await readCsvRows(file, ['Copies', ...SPELL_COLUMNS]);
         if (!rows) return;
         let fromFile = 0;
         rows.forEach(row => {
@@ -1096,7 +1493,7 @@
 
         // Editing one of your own cards: Save Changes updates it, Save as New Item keeps it and makes a copy
         const editingOwn = editingIndex !== null;
-        document.getElementById('editorTitle').textContent = !item ? 'Create Item' : item.edited ? 'Edit Changed Card' : item.custom ? 'Edit Custom Item' : 'Customize Card';
+        editorTitle = !item ? null : item.edited ? 'Edit Changed Card' : item.custom ? 'Edit Custom Item' : 'Customize Card';
         document.getElementById('editorSaveBtn').textContent = editingOwn ? 'Save Changes' : 'Save to Item List';
         document.getElementById('editorSaveNewBtn').style.display = editingOwn ? 'inline-block' : 'none';
         document.getElementById('editorDeleteBtn').style.display = editingOwn ? 'inline-block' : 'none';
@@ -1105,17 +1502,26 @@
         setEditorTab('form');
 
         document.getElementById('edName').value = item ? item.Name : '';
-        setRarityField(item ? item.Rarity : 'common');
+        // The card's kind: an existing card keeps its own; a new one starts as the kind of the list tab it was made from
+        const kind = item ? EDITOR_KINDS[itemTab(item)] : EDITOR_KINDS[currentTab];
+        setRarityField(item && kind === 'magic' ? item.Rarity : 'common');
+        document.getElementById('edCost').value = item && isMundane(item) ? (item.Attunement || '') : '';
+        const spell = item && isSpell(item) ? item : {};
+        document.getElementById('edLevel').value = String(spellLevel(spell) ?? 1);
+        document.getElementById('edSchool').value = spell.School ? spellSchool(spell) : '';
+        document.getElementById('edRitual').checked = item ? isSpell(item) && isRitual(item) : false;
+        [['edClasses', 'Classes'], ['edCastingTime', 'CastingTime'], ['edRange', 'Range'], ['edComponents', 'Components'], ['edDuration', 'Duration']]
+            .forEach(([id, column]) => document.getElementById(id).value = spell[column] || '');
         document.getElementById('edType').value = item ? (item.Type || '') : '';
         document.getElementById('edSource').value = item ? (item.Source || '') : 'Homebrew';
         document.getElementById('edDesc').value = item ? (item.Description || '') : '';
 
         // Attunement is stored like the wiki data: "No Attunement", "requires attunement" or "requires attunement by a wizard"
-        const attunement = item ? (item.Attunement || '').trim() : '';
+        const attunement = item && !isMundane(item) ? (item.Attunement || '').trim() : '';
         const needsAttunement = attunement !== '' && !/^no attunement$/i.test(attunement);
         document.getElementById('edAttune').value = needsAttunement ? 'yes' : '';
         document.getElementById('edAttuneBy').value = needsAttunement ? attunement.replace(/^requires attunement\s*(by\s+)?/i, '') : '';
-        updateAttunementField();
+        setEditorKind(kind);
 
         // Suggest the sources already in the list
         const sources = new Set();
@@ -1156,26 +1562,70 @@
         select.value = value;
     }
 
+    // The editor's Magic Item / Regular Item / Spell tabs. Each kind shows its own fields:
+    //   magic: Rarity, Type, Attunement     regular: Type, Cost     spell: Level, School, Classes, casting details
+    const EDITOR_KINDS = { magic: 'magic', regular: 'regular', spells: 'spell' };   // list tab -> editor kind
+    let editorKind = 'magic', editorTitle = null;   // editorTitle: null for a new card (the title then names the kind)
+    function setEditorKind(kind) {
+        editorKind = kind;
+        document.querySelectorAll('.kind-tabs button').forEach(b => {
+            b.classList.toggle('active', b.dataset.kind === kind);
+            b.setAttribute('aria-selected', b.dataset.kind === kind);
+        });
+        document.getElementById('editorTitle').textContent = editorTitle
+            || { magic: 'Create Magic Item', regular: 'Create Regular Item', spell: 'Create Spell' }[kind];
+        document.getElementById('edName').placeholder = { magic: 'Sword of Example', regular: 'Iron Pot', spell: 'Example Bolt' }[kind];
+        document.getElementById('edType').placeholder = kind === 'regular' ? 'Adventuring Gear' : 'Wondrous item';
+        updateAttunementField();
+        updateEditorPreview();
+    }
+
+    // Shows the fields for the editor's kind (see setEditorKind)
     function updateAttunementField() {
         const byField = document.getElementById('edAttuneBy');
         byField.disabled = document.getElementById('edAttune').value !== 'yes';
+        const show = (id, visible) => document.getElementById(id).style.display = visible ? '' : 'none';
+        show('edRarityLabel', editorKind === 'magic');
+        show('edTypeLabel', editorKind !== 'spell');   // a spell's type line is made from its level and school
+        show('edAttuneRow', editorKind === 'magic');
+        show('edCostRow', editorKind === 'regular');
+        show('edSpellFields', editorKind === 'spell');
+    }
+
+    // "5th-level Evocation" / "Evocation Cantrip", with "(Ritual)" for rituals: what the card prints under the name
+    function spellTypeLine() {
+        const level = Number(document.getElementById('edLevel').value);
+        const school = titleCase(document.getElementById('edSchool').value.trim()) || 'Evocation';
+        const ritual = document.getElementById('edRitual').checked ? ' (Ritual)' : '';
+        return (level === 0 ? `${school} Cantrip` : `${LEVEL_NAMES[level]}-level ${school}`) + ritual;
     }
 
     // The item as currently typed into the editor
     function readEditor() {
+        const rarity = editorKind === 'spell' ? 'spell' : editorKind === 'regular' ? 'mundane' : document.getElementById('edRarity').value;
         const by = document.getElementById('edAttuneBy').value.trim().replace(/^by\s+/i, '');
-        const attunement = document.getElementById('edAttune').value !== 'yes' ? 'No Attunement'
+        const attunement = rarity === 'spell' ? ''
+            : rarity === 'mundane' ? document.getElementById('edCost').value.trim()
+            : document.getElementById('edAttune').value !== 'yes' ? 'No Attunement'
             : by ? `requires attunement by ${by}` : 'requires attunement';
-        return {
+        const item = {
             Name: document.getElementById('edName').value.trim(),
-            Rarity: document.getElementById('edRarity').value,
+            Rarity: rarity,
             Attunement: attunement,
-            Type: document.getElementById('edType').value.trim(),
+            Type: rarity === 'spell' ? spellTypeLine() : document.getElementById('edType').value.trim(),
             Source: document.getElementById('edSource').value.trim(),
             Description: document.getElementById('edDesc').value.replace(/\s+$/, ''),
             URL: editorBaseUrl,
             Notes: ''
         };
+        if (rarity === 'spell') {
+            const value = (id) => document.getElementById(id).value.trim();
+            Object.assign(item, {
+                Level: value('edLevel'), School: titleCase(value('edSchool')), CastingTime: value('edCastingTime'),
+                Range: value('edRange'), Components: value('edComponents'), Duration: value('edDuration'), Classes: value('edClasses')
+            });
+        }
+        return item;
     }
 
     // Redraws the live preview, at most once per frame while typing
@@ -1254,7 +1704,7 @@
         closeEditor();
     }
 
-    ['edName', 'edRarity', 'edType', 'edAttune', 'edAttuneBy', 'edSource', 'edDesc'].forEach(id => {
+    ['edName', 'edRarity', 'edType', 'edAttune', 'edAttuneBy', 'edCost', 'edLevel', 'edSchool', 'edClasses', 'edCastingTime', 'edRange', 'edComponents', 'edDuration', 'edRitual', 'edSource', 'edDesc'].forEach(id => {
         document.getElementById(id).addEventListener('input', () => { updateAttunementField(); updateEditorPreview(); });
     });
     document.addEventListener('keydown', (e) => {
@@ -1315,13 +1765,16 @@
 
     // --- 9. Load the items embedded in this file, plus this browser's saved custom and CSV items ---
     loadSavedItems();
-    try {
-        const embedded = JSON.parse(document.getElementById('embeddedCsv').textContent || '""');
-        if (embedded) baseItems = Papa.parse(embedded, { header: true, skipEmptyLines: true }).data.filter(hasName);
-    } catch (err) {
-        console.error('Could not read the embedded items:', err);
-    }
+    ['embeddedCsv', 'embeddedMundaneCsv', 'embeddedSpellsCsv'].forEach(elementId => {
+        try {
+            const embedded = JSON.parse(document.getElementById(elementId).textContent || '""');
+            if (embedded) baseItems.push(...Papa.parse(embedded, { header: true, skipEmptyLines: true }).data.filter(hasName));
+        } catch (err) {
+            console.error(`Could not read the embedded items (${elementId}):`, err);
+        }
+    });
     rebuildItems();
+    setTab('magic');
 </script>
 </body>
 </html>
