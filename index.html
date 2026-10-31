@@ -257,7 +257,7 @@
         <div style="font-size: 13px; color: #555; margin: -4px 0 12px;">
             <span id="dataStatusText"></span>
             <button id="downloadAdded" style="display: none; padding: 2px 8px; font-size: 12px; margin-left: 6px;" onclick="downloadAddedItems()">⬇ Download added items</button>
-            <button id="clearAdded" class="btn-secondary" style="display: none; padding: 2px 8px; font-size: 12px; margin-left: 6px;" onclick="clearAddedItems()">Remove CSV items</button>
+            <button id="clearAdded" class="btn-secondary" style="display: none; padding: 2px 8px; font-size: 12px; margin-left: 6px;" onclick="clearAddedItems()">Remove all added items</button>
         </div>
         <input type="text" id="searchInput" placeholder="Search items by name or type...">
 
@@ -391,22 +391,20 @@
     let allItems = [], printQueue = [], selectedId = null;
     const STANDARD_RARITIES = ['common', 'uncommon', 'rare', 'very rare', 'legendary', 'artifact'];
 
-    // Built-in items come embedded in this file (see build_single_html.py). Users can add more items from their own CSV,
-    // and make their own with Create Item / Customize Card (customItems, saved in this browser).
-    let baseItems = [], addedItems = [], addedFileNames = [], customItems = [];
+    // Built-in items come embedded in this file (see build_single_html.py). Users make their own with Create Item / Customize Card,
+    // or load them from CSV files, which works like Create Item for each row (customItems, saved in this browser).
+    let baseItems = [], customItems = [];
+    const ITEM_COLUMNS = ['Name', 'Rarity', 'Attunement', 'Type', 'Source', 'Description', 'URL', 'Notes'];
     const hasName = (item) => item && item.Name && item.Name.trim() !== '';
     const itemKey = (item) => item.Name.trim().toLowerCase() + '|' + (item.Rarity || '').trim().toLowerCase();
 
     function rebuildItems() {
-        // An added or custom item with the same name and rarity as a built-in item replaces it; everything else is appended.
-        // Custom items win over CSV items. A custom item that replaces an existing one is marked "edited".
+        // A custom item with the same name and rarity as a built-in item replaces it and is marked "edited"; the rest are appended.
         const baseKeys = new Set(baseItems.map(itemKey));
-        const csvKeys = new Set(addedItems.map(itemKey));
         const added = new Map();
-        addedItems.forEach(it => added.set(itemKey(it), { ...it, fromCsv: true }));
         customItems.forEach((it, i) => {
             const key = itemKey(it);
-            added.set(key, { ...it, custom: true, customIndex: i, edited: baseKeys.has(key) || csvKeys.has(key) });
+            added.set(key, { ...it, custom: true, customIndex: i, edited: baseKeys.has(key) });
         });
         const merged = baseItems.map(it => added.get(itemKey(it)) || it)
             .concat(Array.from(added.entries()).filter(([k]) => !baseKeys.has(k)).map(([, it]) => it));
@@ -420,19 +418,17 @@
     }
 
     function clearAddedItems() {
-        if (!confirm('Remove the items added from CSV files? Your custom items are kept.')) return;
-        addedItems = [];
-        addedFileNames = [];
-        saveStored(CSV_STORAGE_KEY, { items: addedItems, files: addedFileNames });
+        if (!confirm(`Remove all ${customItems.length} of your custom and edited items? Edited built-in cards go back to the original.`)) return;
+        customItems = [];
+        saveCustomItems();
         rebuildItems();
     }
 
-    // Downloads every item that isn't built in (CSV and custom), in the items.csv format, so it can be loaded again with "Choose Files"
+    // Downloads every custom and edited item in the items.csv format, so it can be loaded again with "Choose Files"
     function downloadAddedItems() {
-        const items = allItems.filter(it => it.custom || it.fromCsv);
+        const items = allItems.filter(it => it.custom);
         if (!items.length) return alert('There are no added items to download.');
-        const columns = ['Name', 'Rarity', 'Attunement', 'Type', 'Source', 'Description', 'URL', 'Notes'];
-        const csv = Papa.unparse({ fields: columns, data: items.map(it => columns.map(c => it[c] || '')) });
+        const csv = Papa.unparse({ fields: ITEM_COLUMNS, data: items.map(it => ITEM_COLUMNS.map(c => it[c] || '')) });
         // The BOM makes Excel read the file as UTF-8
         const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
         const link = document.createElement('a');
@@ -446,14 +442,13 @@
 
     function updateDataStatus() {
         let text = baseItems.length ? `${baseItems.length} built-in items` : 'No built-in items. Choose a CSV file to load items.';
-        if (addedItems.length) text += ` + ${addedItems.length} added from ${addedFileNames.join(', ')}`;
         const edited = allItems.filter(it => it.edited).length;
         const custom = allItems.filter(it => it.custom).length - edited;
         if (custom) text += ` + ${custom} custom`;
         if (edited) text += ` (${edited} edited)`;
         document.getElementById('dataStatusText').textContent = text;
-        document.getElementById('clearAdded').style.display = addedItems.length ? 'inline-block' : 'none';
-        document.getElementById('downloadAdded').style.display = addedItems.length || customItems.length ? 'inline-block' : 'none';
+        document.getElementById('clearAdded').style.display = customItems.length ? 'inline-block' : 'none';
+        document.getElementById('downloadAdded').style.display = customItems.length ? 'inline-block' : 'none';
     }
 
     // --- Source filter ---
@@ -517,11 +512,20 @@
         if (!files.length) return;
         for (const file of files) await addCsvFile(file);
         e.target.value = '';   // lets the same file be chosen again
-        saveStored(CSV_STORAGE_KEY, { items: addedItems, files: addedFileNames });
+        saveCustomItems();
         rebuildItems();
     });
 
-    // Reads a CSV file chosen by the user and adds its items to the built-in ones
+    // Adds items to customItems as if each had been made with Create Item. An item with the same name and rarity
+    // as one already there replaces it in place, so later files (and later rows) win.
+    function addCustomItems(items) {
+        items.forEach(item => {
+            const i = customItems.findIndex(it => itemKey(it) === itemKey(item));
+            if (i >= 0) customItems[i] = item; else customItems.push(item);
+        });
+    }
+
+    // Reads a CSV file chosen by the user and adds its rows as custom items
     async function addCsvFile(file) {
         // Decode as UTF-8 if valid; otherwise fall back to Windows-1252 (fixes ’ “ ” — showing as garbage)
         const buffer = await file.arrayBuffer();
@@ -538,8 +542,12 @@
             alert(`"${file.name}" needs a header row with a Name column (like items.csv).`);
             return;
         }
-        addedItems.push(...results.data.filter(hasName));
-        addedFileNames.push(file.name);
+        addCustomItems(results.data.filter(hasName).map(row => {
+            const item = {};
+            ITEM_COLUMNS.forEach(c => item[c] = (row[c] || '').trim());
+            item.Rarity = item.Rarity.toLowerCase();
+            return item;
+        }));
     }
 
     document.getElementById('searchInput').addEventListener('input', applyFilters);
@@ -990,10 +998,15 @@
     function loadSavedItems() {
         const custom = loadStored(CUSTOM_STORAGE_KEY);
         if (Array.isArray(custom)) customItems = custom.filter(hasName);
+        // Older versions kept CSV items apart; they become custom items now (your own edits still win)
         const csv = loadStored(CSV_STORAGE_KEY);
         if (csv && Array.isArray(csv.items)) {
-            addedItems = csv.items.filter(hasName);
-            addedFileNames = Array.isArray(csv.files) ? csv.files : [];
+            const own = customItems;
+            customItems = [];
+            addCustomItems(csv.items.filter(hasName));
+            addCustomItems(own);
+            saveCustomItems();
+            try { localStorage.removeItem(CSV_STORAGE_KEY); } catch (err) { }
         }
     }
 
