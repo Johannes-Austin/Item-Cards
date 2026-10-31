@@ -9,10 +9,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         /* UI STYLING */
+        :root { --card-scale: 1.4; }  /* how much bigger the preview card is than the printed card */
         body { font-family: 'Roboto', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
         .ui-container { max-width: 1600px; margin: 0 auto; display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
         .panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .preview-panel { flex: 0 0 auto; width: calc(3.5in + 18px); position: sticky; top: 20px; height: fit-content; }
+        .preview-panel { flex: 0 0 auto; width: calc(2.5in * var(--card-scale) + 18px); position: sticky; top: 20px; height: fit-content; }
         .catalog-panel { flex: 2; min-width: 300px; }
         .queue-panel { flex: 1; min-width: 300px; position: sticky; top: 20px; height: fit-content; }
 
@@ -67,17 +68,18 @@
         .editor-form label.editor-check { flex-direction: row; align-items: center; gap: 6px; font-weight: normal; cursor: pointer; }
         .editor-form label.editor-check input { width: auto; }
         .editor-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
-        .editor-preview { flex: 0 0 auto; width: calc(3.5in + 18px); margin-top: 24px; }  /* clears the close button */
+        .editor-preview { flex: 0 0 auto; width: calc(2.5in * var(--card-scale) + 18px); margin-top: 24px; }  /* clears the close button */
         .editor-preview .preview-wrap { max-height: calc(92vh - 110px); }
+
 
         .queue-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 6px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s; }
         .queue-item:hover { background-color: #e9ecef; }
         .queue-item.selected { background-color: #cfe2ff; }
 
         /* PREVIEW PANEL */
-        .preview-wrap { width: calc(3.5in + 18px); max-height: calc(100vh - 300px); min-height: 3in; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 14px; padding-bottom: 6px; }
-        .preview-slot { width: 3.5in; height: 4.9in; flex: 0 0 auto; position: relative; }
-        .preview-slot .card { transform: scale(1.4); transform-origin: top left; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.35); border-radius: 6px; transition: filter 0.2s; }
+        .preview-wrap { width: calc(2.5in * var(--card-scale) + 18px); max-height: calc(100vh - 300px); min-height: 3in; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 14px; padding-bottom: 6px; }
+        .preview-slot { width: calc(2.5in * var(--card-scale)); height: calc(3.5in * var(--card-scale)); flex: 0 0 auto; position: relative; }
+        .preview-slot .card { transform: scale(var(--card-scale)); transform-origin: top left; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.35); border-radius: 6px; transition: filter 0.2s; }
         .preview-slot .card:hover { filter: brightness(1.05); }
         .preview-placeholder { width: 3.5in; height: 4.9in; display: flex; align-items: center; justify-content: center; text-align: center; color: #888; border: 2px dashed #ccc; border-radius: 8px; box-sizing: border-box; padding: 20px; }
         .preview-hint { font-size: 12px; color: #777; text-align: center; margin: 10px 0; }
@@ -149,7 +151,7 @@
 
         /* Only apply actual print constraints here */
         @media print {
-            .ui-container, .modal-overlay, .measure-holder { display: none !important; }
+            .ui-container, .modal-overlay, .measure-holder, .mobile-bar { display: none !important; }
             body { margin: 0; padding: 0; background: white; }
             .print-container { display: block !important; visibility: visible !important; position: static !important; }
             * {
@@ -158,6 +160,69 @@
                 color-adjust: exact !important;
             }
         }
+
+        /* Phone-only parts, hidden on bigger screens */
+        .editor-tabs, .sheet-close, .mobile-bar, .mobile-type { display: none; }
+
+        /* PHONES: one column. Tapping an item opens its card in a full-screen sheet, and the print queue
+           opens from a bar at the bottom of the screen (see openSheet). */
+        @media (max-width: 800px) {
+            body { padding: 8px 8px 76px; }
+            body.sheet-open { overflow: hidden; }
+            .ui-container { gap: 10px; }
+            .panel { padding: 12px; }
+            .panel h2 { font-size: 20px; }
+            .catalog-panel, .queue-panel { flex: 1 1 100%; min-width: 0; }
+
+            /* Inputs at 16px stop phones from zooming in when they are tapped */
+            input[type="text"], select, textarea { font-size: 16px !important; }
+
+            .data-row { gap: 8px; }
+            .data-row > button { width: 100%; }
+            .filter-group { gap: 8px 12px; }
+            .source-list { grid-template-columns: 1fr; max-height: 220px; }
+
+            /* Item list: the Type column moves under the name */
+            th, td { padding: 8px 6px; }
+            #catalogTable th:nth-child(3), #catalogTable td:nth-child(3) { display: none; }
+            .mobile-type { display: block; font-size: 12px; color: #666; margin-top: 2px; }
+            #catalogTable .btn-add { padding: 8px 12px; white-space: nowrap; }
+
+            /* Card preview and print queue become full-screen sheets */
+            .preview-panel, .queue-panel { display: none; }
+            body.sheet-preview .preview-panel, body.sheet-queue .queue-panel {
+                display: block; position: fixed; inset: 0; z-index: 900; width: auto; height: auto;
+                border-radius: 0; overflow-y: auto; box-sizing: border-box;
+            }
+            .sheet-header { display: flex; justify-content: space-between; align-items: center; }
+            .sheet-close { display: block; background: #e9ecef; color: #333; font-size: 18px; padding: 6px 12px; }
+            .sheet-close:hover { background: #dee2e6; }
+            .preview-panel .preview-wrap { width: auto; max-height: none; min-height: 0; overflow: visible; align-items: center; }
+            .preview-panel .preview-placeholder { display: none !important; }
+            #queueList { max-height: none !important; }
+            .queue-item { padding: 12px 6px; }
+            .queue-item .btn-remove { padding: 8px 14px; }
+            .btn-clear { padding: 10px 15px; font-size: 14px; }
+
+            .mobile-bar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 800; padding: 10px 12px; background: white; box-shadow: 0 -2px 10px rgba(0,0,0,0.15); }
+            .mobile-bar button { flex: 1; padding: 12px; font-size: 16px; }
+
+            /* Item editor: full screen, with Edit / Preview tabs instead of side by side */
+            .modal-overlay { align-items: stretch; }
+            .modal-content.editor-content { width: 100%; max-width: none; max-height: none; height: 100%; border-radius: 0; padding: 16px; display: block; overflow-y: auto; }
+            .editor-tabs { display: flex; gap: 6px; margin: 0 48px 14px 0; }
+            .editor-tabs button { flex: 1; background: #e9ecef; color: #333; }
+            .editor-tabs button.active { background: #0d6efd; color: white; }
+            .editor-content .editor-preview { display: none; width: auto; margin-top: 0; }
+            .editor-content.show-preview .editor-preview { display: block; }
+            .editor-content.show-preview .editor-form { display: none; }
+            .editor-preview .preview-wrap { width: auto; max-height: none; align-items: center; }
+            .editor-buttons button { flex: 1 1 40%; }
+            .modal-close { top: 14px; right: 14px; }
+        }
+        @media (max-width: 370px) {
+            :root { --card-scale: 1.2; }  /* the card must fit a narrow phone screen */
+        }
     </style>
 </head>
 <body>
@@ -165,7 +230,10 @@
 <div class="ui-container">
     <!-- Card preview (left) -->
     <div class="panel preview-panel">
-        <h2 style="margin-top: 0;">🃏 Card Preview</h2>
+        <div class="sheet-header">
+            <h2 style="margin-top: 0;">🃏 Card Preview</h2>
+            <button class="sheet-close" onclick="openSheet(null)" aria-label="Close">✖</button>
+        </div>
         <div id="previewPlaceholder" class="preview-placeholder">Click an item in the list to preview its card here.</div>
         <div id="previewWrap" class="preview-wrap" style="display: none;"></div>
         <div id="previewActions" style="display: none;">
@@ -224,12 +292,15 @@
     </div>
 
     <div class="panel queue-panel">
-        <h2 style="margin-top: 0;">📜 Print Queue (<span id="queueCount">0</span>)</h2>
+        <div class="sheet-header">
+            <h2 style="margin-top: 0;">📜 Print Queue (<span id="queueCount">0</span>)</h2>
+            <button class="sheet-close" onclick="openSheet(null)" aria-label="Close">✖</button>
+        </div>
         <div id="queueList" style="margin-bottom: 20px; max-height: 400px; overflow-y: auto;"></div>
         <div style="display: flex; flex-direction: column; gap: 10px;">
             <button onclick="prepareAndPrint('sheet')">🖨️ Print Sheet (8.5x11)</button>
             <button onclick="prepareAndPrint('single')" class="btn-secondary">🃏 Print Singles (2.5x3.5 paper)</button>
-            <button class="btn-remove" onclick="clearQueue()">Clear Queue</button>
+            <button class="btn-remove btn-clear" onclick="clearQueue()">Clear Queue</button>
         </div>
     </div>
 </div>
@@ -247,10 +318,20 @@
     </div>
 </div>
 
+<!-- Phones only: opens the print queue -->
+<div class="mobile-bar">
+    <button onclick="openSheet('queue')">📜 Print Queue (<span id="mobileQueueCount">0</span>)</button>
+</div>
+
 <!-- Item editor: Create Item (blank) or Customize Card (filled in from the selected item) -->
 <div class="modal-overlay" id="editorModal" onclick="if (event.target === this) closeEditor()">
     <div class="modal-content editor-content">
         <button class="modal-close" onclick="closeEditor()">✖</button>
+        <!-- Phones only: the form and the preview don't fit side by side -->
+        <div class="editor-tabs">
+            <button id="editorTabForm" class="active" onclick="setEditorTab('form')">Edit</button>
+            <button id="editorTabPreview" onclick="setEditorTab('preview')">Preview</button>
+        </div>
         <div class="editor-form">
             <h2 id="editorTitle" style="margin: 0;">Create Item</h2>
             <label>Name <input type="text" id="edName" placeholder="Sword of Example"></label>
@@ -502,8 +583,8 @@
     function renderCatalog(items) {
         const tbody = document.getElementById('catalogBody');
         tbody.innerHTML = items.map(item => `
-            <tr class="item-row${item.id === selectedId ? ' selected' : ''}" data-id="${item.id}" onclick="showPreview(${item.id})">
-                <td><strong>${item.Name}</strong>${item.edited ? '<span class="custom-badge edited">edited</span>' : item.custom ? '<span class="custom-badge">custom</span>' : ''}</td>
+            <tr class="item-row${item.id === selectedId ? ' selected' : ''}" data-id="${item.id}" onclick="selectItem(${item.id})">
+                <td><strong>${item.Name}</strong>${item.edited ? '<span class="custom-badge edited">edited</span>' : item.custom ? '<span class="custom-badge">custom</span>' : ''}<div class="mobile-type">${item.Type || ''}</div></td>
                 <td style="text-transform: capitalize;">${item.Rarity}</td>
                 <td>${item.Type}</td>
                 <td><button class="btn-add" onclick="event.stopPropagation(); addToQueue(${item.id})">+ Add</button></td>
@@ -754,6 +835,21 @@
     }
 
     // --- 4. Preview Panel ---
+    // On phones the preview and the print queue are full-screen sheets, opened one at a time (name = 'preview', 'queue' or null to close)
+    const phoneLayout = window.matchMedia('(max-width: 800px)');
+    function openSheet(name) {
+        document.body.classList.remove('sheet-preview', 'sheet-queue');
+        document.body.classList.toggle('sheet-open', !!name);
+        if (name) document.body.classList.add('sheet-' + name);
+    }
+    phoneLayout.addEventListener('change', () => openSheet(null));  // e.g. a phone turned sideways past the phone width
+
+    // An item picked by the user (not just redrawn): on phones this also opens the preview sheet
+    function selectItem(id) {
+        if (phoneLayout.matches) openSheet('preview');
+        showPreview(id);
+    }
+
     function showPreview(id) {
         const item = allItems.find(i => i.id === id);
         if (!item) return;
@@ -834,6 +930,7 @@
 
     function renderQueue() {
         document.getElementById('queueCount').innerText = printQueue.length;
+        document.getElementById('mobileQueueCount').innerText = printQueue.length;
         document.getElementById('queueList').innerHTML = printQueue.map((spec, idx) => `
             <div class="queue-item" data-idx="${idx}" title="Click to preview" onclick="showQueuedCard(${idx})"><span>${spec.item.Name}${spec.pages > 1 ? ` (${spec.page}/${spec.pages})` : ''}</span><button class="btn-remove" onclick="event.stopPropagation(); removeFromQueue(${idx})">X</button></div>
         `).join('');
@@ -846,11 +943,13 @@
         // The list is renumbered when items are added or changed, so look the item up again by name and rarity if needed
         const item = allItems.find(i => i === spec.item) || allItems.find(i => itemKey(i) === itemKey(spec.item));
         if (!item) return alert(`"${spec.item.Name}" is no longer in the item list, so it can't be previewed. It will still print.`);
-        showPreview(item.id);
+        selectItem(item.id);
 
         const wrap = document.getElementById('previewWrap');
         const slot = wrap.querySelectorAll('.preview-slot')[spec.page - 1];
-        if (slot) wrap.scrollTop = slot.offsetTop - wrap.firstElementChild.offsetTop;
+        if (!slot) return;
+        if (phoneLayout.matches) slot.scrollIntoView({ block: 'start' });   // the whole sheet scrolls on phones
+        else wrap.scrollTop = slot.offsetTop - wrap.firstElementChild.offsetTop;
     }
 
     // Highlights the queue entries for the item shown in the preview
@@ -914,6 +1013,7 @@
         document.getElementById('editorDeleteBtn').style.display = editingOwn ? 'inline-block' : 'none';
         document.getElementById('editorDeleteBtn').textContent = item && item.edited ? 'Restore Original' : 'Delete';
         document.getElementById('edAddToQueue').checked = false;
+        setEditorTab('form');
 
         document.getElementById('edName').value = item ? item.Name : '';
         setRarityField(item ? item.Rarity : 'common');
@@ -939,6 +1039,14 @@
         document.getElementById('edName').focus();
         updateEditorPreview();
         fontsReady.then(updateEditorPreview);
+    }
+
+    // Phones only: switches the editor between the form and the card preview
+    function setEditorTab(tab) {
+        document.querySelector('.editor-content').classList.toggle('show-preview', tab === 'preview');
+        document.getElementById('editorTabForm').classList.toggle('active', tab !== 'preview');
+        document.getElementById('editorTabPreview').classList.toggle('active', tab === 'preview');
+        if (tab === 'preview') updateEditorPreview();   // the text is measured while visible
     }
 
     function closeEditor() {
@@ -1039,7 +1147,7 @@
 
         const saved = allItems.find(it => it.custom && itemKey(it) === itemKey(item));
         if (saved) {
-            showPreview(saved.id);
+            selectItem(saved.id);
             if (alsoQueue) addToQueue(saved.id);
         }
     }
@@ -1061,7 +1169,9 @@
         document.getElementById(id).addEventListener('input', () => { updateAttunementField(); updateEditorPreview(); });
     });
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && document.getElementById('editorModal').style.display === 'flex') closeEditor();
+        if (e.key !== 'Escape') return;
+        if (document.getElementById('editorModal').style.display === 'flex') closeEditor();
+        else openSheet(null);
     });
 
     // --- 8. Print Logic & Resizer ---
