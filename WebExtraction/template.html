@@ -602,6 +602,8 @@
                     <option value="fletcher">Bowyer / Fletcher</option>
                     <option value="alchemist">Alchemist / Apothecary</option>
                     <option value="jeweler">Jeweler</option>
+                    <option value="tailor">Tailor / Clothier</option>
+                    <option value="baubles">Baubles / Curios</option>
                     <option value="arcane">Arcane Supplies / Scribe</option>
                     <option value="magic">Magic Shop</option>
                     <option value="any">Anything</option>
@@ -1878,17 +1880,25 @@
     }
     const rarityOf = (item) => (item.Rarity || '').trim().toLowerCase();
 
+    // A random item from the list; with weightOf, each item is as likely as its weight (e.g. 2 = twice as likely)
+    function pickItem(list, weightOf) {
+        if (!list.length) return null;
+        if (!weightOf) return pickRandom(list);
+        let roll = Math.random() * list.reduce((sum, item) => sum + weightOf(item), 0);
+        for (const item of list) { if ((roll -= weightOf(item)) < 0) return item; }
+        return list[list.length - 1];
+    }
+
     // A random magic item from the pool, its rarity picked by the weights; rarities with nothing left are skipped
-    function pickMagic(pool, rarityWeights, used) {
+    function pickMagic(pool, rarityWeights, used, weightOf) {
         const left = pool.filter(item => !used.has(itemKey(item)));
         const weights = {};
         Object.entries(rarityWeights).forEach(([rarity, w]) => { if (left.some(item => rarityOf(item) === rarity)) weights[rarity] = w; });
         const rarity = pickWeighted(weights);
-        return rarity ? pickRandom(left.filter(item => rarityOf(item) === rarity)) : null;
+        return rarity ? pickItem(left.filter(item => rarityOf(item) === rarity), weightOf) : null;
     }
-    function pickAny(pool, used) {
-        const left = pool.filter(item => !used.has(itemKey(item)));
-        return left.length ? pickRandom(left) : null;
+    function pickAny(pool, used, weightOf) {
+        return pickItem(pool.filter(item => !used.has(itemKey(item))), weightOf);
     }
 
     // "1,500 gp" -> 1500, "5 sp" -> 0.5; NaN when there is no price
@@ -1900,16 +1910,42 @@
     const typeOrName = (pattern) => (item) => pattern.test(item.Type || '') || pattern.test(item.Name || '');
     const JEWELRY = /\b(ring|amulet|necklace|brooch|circlet|crown|diadem|gem|jewel|pearl|periapt|medallion|pendant|bracelet|bracers|scarab|talisman|torc|earring|locket|stone|emerald|ruby|sapphire|diamond)\b/i;
 
+    const CLOTHING = /\b(cloak|robes?|cape|mantle|hat|cap|gloves|boots|slippers|belt|girdle|vestments|shirt|clothes|clothing|garb|sash|scarf|hood|cowl|wraps?|tunic|coat|jacket|veil|mask|bandolier|stockings|shawl|gown|dress|tabard|vest)\b/i;
+
     // Shops: which regular items and which magic items each one stocks. magicOnly shops ignore the wealth's magic share.
+    // favor: names that suit the shop even when the Type doesn't (Gauntlets of Ogre Power are a "Wondrous Item").
+    // Those items are added to the stock and are twice as likely to come up, so the stock leans toward them
+    // without the shop running short.
     const SHOPS = {
-        general:   { regular: item => ['Adventuring Gear', 'Tools', 'Ammunition'].includes(itemCategory(item)), magic: typeOrName(/potion|wondrous/i) },
-        smith:     { regular: item => ['Weapons', 'Armor', 'Ammunition'].includes(itemCategory(item)), magic: item => /weapon|armor|shield|ammunition/i.test(item.Type || '') },
-        fletcher:  { regular: typeOrName(/\bbow|arrow|bolt|quiver|sling|dart|blowgun|needle|crossbow|ammunition/i), magic: typeOrName(/\bbow|arrow|bolt|quiver|sling|ammunition|crossbow/i) },
-        alchemist: { regular: item => ['Poisons', 'Explosives'].includes(itemCategory(item)) || /\b(acid|alchemist's|antitoxin|healer's|oil|holy water|perfume|vial|flask|herbalism|poisoner's|bottle)\b/i.test(item.Name), magic: typeOrName(/potion|elixir|philter|\boil of|dust of|salve|ointment|incense/i) },
+        general:   { regular: item => ['Adventuring Gear', 'Tools', 'Ammunition'].includes(itemCategory(item)), magic: typeOrName(/potion|wondrous/i),
+                     favor: { regular: /\b(rope|backpack|bedroll|tent|lantern|lamp|torch|rations|waterskin|tinderbox|blanket|pouch|sack|chest|crowbar|piton|grappling hook|shovel|pole|ladder)\b/i,
+                              magic: /\b(bag|haversack|rope|lantern|lamp|tent|bedroll|boots|backpack|pouch|chest|blanket|flask|canteen|jug|decanter|pot|candle|ladder|pole|shovel|cart|wagon|boat|food|rations)\b/i } },
+        smith:     { regular: item => ['Weapons', 'Armor', 'Ammunition'].includes(itemCategory(item)), magic: item => /weapon|armor|shield|ammunition/i.test(item.Type || ''),
+                     favor: { regular: /\b(smith's tools|tinker's tools|chain|iron|crowbar|hammer|piton|manacles|lock|caltrops|pot|shovel|pick|grappling hook|spikes)\b/i,
+                              magic: /\b(gauntlets?|bracers|horseshoes?|helm|iron|steel|chain|mithral|adamantine|anvil|hammer|plate|forge|spiked|dwarven|metal|bands)\b/i } },
+        fletcher:  { regular: typeOrName(/\bbow|arrow|bolt|quiver|sling|dart|blowgun|needle|crossbow|ammunition/i), magic: typeOrName(/\bbow|arrow|bolt|quiver|sling|ammunition|crossbow/i),
+                     favor: { regular: /\b(woodcarver's tools|leatherworker's tools|hunting trap|bolt case)\b/i,
+                              magic: /\b(archery|archer|hunter|hunting|eagle|hawk|falcon|feather|ranger|marksman|seeking|sharpshooter)\b/i } },
+        alchemist: { regular: item => ['Poisons', 'Explosives'].includes(itemCategory(item)) || /\b(acid|alchemist's|antitoxin|healer's|oil|holy water|perfume|vial|flask|herbalism|poisoner's|bottle)\b/i.test(item.Name), magic: typeOrName(/potion|elixir|philter|\boil of|dust of|salve|ointment|incense/i),
+                     favor: { regular: /\b(candle|soap|component pouch|jug|pot|glassblower's|brewer's|cook's)\b/i,
+                              magic: /\b(flask|bottle|decanter|alembic|jug|beads?|candle|pipe|censer|keoghtom's|alchemy|cauldron|pot|mortar|herbs?|smoke|vapors?|perfume|elemental gem)\b/i } },
         // (not Ring Mail or a ruby-studded sword)
         jeweler:   { regular: item => /\b(amulet|ring|emblem|reliquary|jeweler's|crystal)\b/i.test(item.Name) && itemCategory(item) !== 'Armor',
-                     magic: item => typeOrName(JEWELRY)(item) && !/armor|weapon|shield/i.test(item.Type || '') },
-        arcane:    { regular: item => /focus|holy symbol/i.test(item.Type || '') || /\b(spellbook|component pouch|ink|ink pen|paper|parchment|calligrapher's|book|sealing wax|chalk)\b/i.test(item.Name), magic: typeOrName(/scroll|wand|staff|rod|tome|manual|spellbook|orb|crystal ball/i) },
+                     magic: item => typeOrName(JEWELRY)(item) && !/armor|weapon|shield/i.test(item.Type || ''),
+                     favor: { regular: /\b(signet|mirror|perfume|merchant's|hourglass|magnifying glass)\b/i,
+                              magic: /\b(figurine|ioun|gold|golden|silver|platinum|jade|ivory|crystal|opal|onyx|obsidian|mirror|scepter|chalice|goblet|coins?|beads?|charm)\b/i } },
+        tailor:    { regular: item => /light armor|clothes/i.test(item.Type || '') || /\b(robes?|blanket|bedroll|tent|pouch|sack|backpack|weaver's tools|leatherworker's tools|cobbler's tools)\b/i.test(item.Name),
+                     magic: item => (/armor/i.test(item.Type || '') && /\b(light|leather|padded|studded)\b/i.test(item.Type || '')) || (CLOTHING.test(item.Name || '') && !/weapon|armor|shield/i.test(item.Type || '')),
+                     favor: { regular: /\b(clothes|robes?|costume|silk|weaver's tools|leatherworker's tools|cobbler's tools)\b/i,
+                              magic: /\b(cloak|robes?|cape|mantle|silk|cloth|leather|thread|needle|woven|tapestry|carpet|bag|pouch|quiver)\b/i } },
+        baubles:   { regular: item => !['Poisons', 'Explosives'].includes(itemCategory(item)) && (/musical instrument|gaming set/i.test(item.Type || '')
+                         || /\b(bell|whistle|mirror|candle|signet|perfume|ball bearings|hourglass|magnifying glass|chalk|bead|bottle|lamp|lantern|incense|abacus|string)\b/i.test(item.Name)),
+                     magic: item => /wondrous|^ring/i.test(item.Type || ''),
+                     favor: { regular: /\b(bell|whistle|mirror|signet|perfume|ball bearings|hourglass|magnifying glass|playing card|dice|chess|bead|abacus|incense)\b/i,
+                              magic: /\b(figurine|beads?|marbles?|stone|deck|whistle|horn|pipes|box|candle|feather|coins?|toy|bell|dice|token|chimes?|orb|charm|trinket|bottle|mirror|ioun|music|ball|egg|key|lens|eyes?|statuette|puzzle|cards?|doll|cube|sphere|pearl|gem|amulet|pendant|brooch)\b/i } },
+        arcane:    { regular: item => /focus|holy symbol/i.test(item.Type || '') || /\b(spellbook|component pouch|ink|ink pen|paper|parchment|calligrapher's|book|sealing wax|chalk)\b/i.test(item.Name), magic: typeOrName(/scroll|wand|staff|rod|tome|manual|spellbook|orb|crystal ball/i),
+                     favor: { regular: /\b(candle|scroll case|map|magnifying glass|hourglass|robes|lamp|lantern|crystal|orb|wand|staff|rod)\b/i,
+                              magic: /\b(robes?|hat|spell|spells|arcane|mage|magi|wizard|sorcerer|warlock|ink|quill|book|candle|pearl of power|ioun|crystal|focus|grimoire|pages?)\b/i } },
         magic:     { regular: () => false, magic: () => true, magicOnly: true },
         any:       { regular: () => true, magic: () => true },
     };
@@ -1924,14 +1960,19 @@
     function shopPicker() {
         const shop = SHOPS[document.getElementById('genShopType').value];
         const wealth = WEALTH[document.getElementById('genShopWealth').value];
-        const magicPool = allItems.filter(item => itemTab(item) === 'magic' && shop.magic(item));
+        const favored = (pattern) => (item) => !!pattern && pattern.test(item.Name || '');
+        const favorMagic = favored(shop.favor && shop.favor.magic), favorRegular = favored(shop.favor && shop.favor.regular);
+        // A favored name never brings in a potion or scroll the shop doesn't sell (Potion of Stone Giant Strength at a curio stall)
+        const magicPool = allItems.filter(item => itemTab(item) === 'magic'
+            && (shop.magic(item) || (favorMagic(item) && !/^(potion|scroll)/i.test(item.Type || ''))));
         // Regular items without a price (modern firearms, ...) aren't sold
-        const regularPool = allItems.filter(item => isMundane(item) && shop.regular(item) && costInGp(item) <= wealth.maxCost);
+        const regularPool = allItems.filter(item => isMundane(item) && (shop.regular(item) || favorRegular(item)) && costInGp(item) <= wealth.maxCost);
+        const magicWeight = (item) => favorMagic(item) ? 2 : 1, regularWeight = (item) => favorRegular(item) ? 2 : 1;
         const magicShare = shop.magicOnly ? 1 : wealth.magic;
         return (used) => {
             const magicFirst = Math.random() < magicShare;
-            const pickMagicItem = () => pickMagic(magicPool, wealth.rarities, used);
-            const pickRegularItem = () => shop.magicOnly ? null : pickAny(regularPool, used);
+            const pickMagicItem = () => pickMagic(magicPool, wealth.rarities, used, magicWeight);
+            const pickRegularItem = () => shop.magicOnly ? null : pickAny(regularPool, used, regularWeight);
             return magicFirst ? (pickMagicItem() || pickRegularItem()) : (pickRegularItem() || pickMagicItem());
         };
     }
