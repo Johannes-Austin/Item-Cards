@@ -52,10 +52,21 @@ Run these in order, by double-clicking the `.BAT` files in this folder.
 - Saves the pages in `raw_pages\`. Run `RunSpellGather.BAT --cached` to re-parse them without downloading.
 - Step 3 embeds this file too (if it exists). Run step 3 afterwards.
 
+### Open5e magic items and spells (third-party books)
+**`RunOpen5eGather.BAT`** runs `Open5eGather.py`.
+
+- Downloads the magic items and spells from the Open5e API (https://api.open5e.com), which serves openly licensed books: Kobold Press's *Vault of Magic*, *Deep Magic*, *Tome of Heroes* and *Warlock Archives* (Open Gaming License), *Level Up Advanced 5e* (Creative Commons) and a few others.
+- Writes **`open5eItems.csv`** with only the items `items.csv` doesn't already have. A name that matches an item on the wiki, or a wiki item's variants (Level Up's single "Ioun Stone" entry), is skipped.
+- Writes **`open5eSpells.csv`** with only the spells `spells.csv` doesn't already have (a finished version of a wiki "(UA)" spell counts as had). It has the spell columns too, written like the wiki's spells: "Concentration, up to 1 minute", "V, S, M (a magnifying lens)", and "At Higher Levels" at the end of the text. Kobold Press's own classes (Herald, Anti-Paladin) show up in the class filter; about 90 spells list no class.
+- The whole SRD is skipped, since the wiki already has all of it.
+- Uses the `items.csv` / `spells.csv` columns. Source is the book's title, URL is the Open5e page and Notes says which license the book uses.
+- Saves the downloads in `raw_pages\open5e_*.json`. Run `RunOpen5eGather.BAT --cached` to rebuild the CSVs from them without downloading.
+- Step 3 embeds both files too (if they exist) as the page's **secondary entries**. Run step 3 afterwards.
+
 ### 3. Build the single HTML file
 **`BuildSingleHtml.BAT`** runs `build_single_html.py`.
 
-- Embeds `items.csv` (magic items), `mundaneItems.csv` (regular items) and `spells.csv` (spells) into `template.html` and creates **`..\index.html`** in the main CardHTML folder.
+- Embeds `items.csv` (magic items), `mundaneItems.csv` (regular items), `spells.csv` (spells), and `open5eItems.csv` and `open5eSpells.csv` (secondary items and spells) into `template.html` and creates **`..\index.html`** in the main CardHTML folder.
 - Open `index.html` in a browser, or put it and the PNG images on GitHub Pages.
 - The page's "choose file" box still lets people add more items from their own CSV. The built-in items are kept.
 
@@ -80,6 +91,8 @@ Use a different CSV with `BuildSingleHtml.BAT --csv MyOtherItems.csv`.
 | `items.csv` | The scraped item data (output of step 2, input to step 3) |
 | `mundaneItems.csv` | The scraped regular (non-magic) items, from `MundaneGather.py` |
 | `spells.csv` | The scraped spells, from `SpellGather.py` |
+| `open5eItems.csv` | Magic items from Open5e's third-party books that `items.csv` doesn't have, from `Open5eGather.py` |
+| `open5eSpells.csv` | Spells from Open5e's third-party books that `spells.csv` doesn't have, from `Open5eGather.py` |
 | `raw_pages\` | Saved HTML of every downloaded wiki page |
 | `template.html` | Card maker page source (step 3 embeds the items into it) |
 | `InstallPython.BAT`, `python-3.12.1-amd64.exe`, `my_env\`, `offline_packages\`, `automatic_packages\` | Python setup. Run `InstallPython.BAT` if a `.BAT` says the environment is missing |
@@ -88,6 +101,7 @@ Use a different CSV with `BuildSingleHtml.BAT --csv MyOtherItems.csv`.
 
 - **Always run step 3 after step 2.** `index.html` only contains the data from the last build.
 - **Other / Varies items:** a few items have no standard rarity on the wiki (for example "unique" or "unknown"). They appear under "Other / Varies" in the page and use the common card background.
+- **Standard, secondary and user entries:** the line under the CSV box counts the page's items. Standard entries come from the wiki (`items.csv`, `mundaneItems.csv`, `spells.csv`), secondary entries from third-party books (`open5eItems.csv`, `open5eSpells.csv`), and user entries are your own custom, edited and CSV-loaded items. Untick **Include secondary entries** to hide the secondary ones everywhere: the lists, the source filter and Generate Queue. The browser remembers the choice.
 - **Tabs:** under the search box, **Magic Items**, **Regular Items** and **Spells** switch the item list. The card preview and print queue are shared, so one print can mix them, and clicking a queued item switches to its tab. Magic items filter by rarity and regular items by category (gear, weapons, armor, ammunition, tools, poisons, explosives); the category comes from the item's Type.
 - **Regular items in your own CSVs or the editor:** an item whose Rarity is `mundane` is a regular item. It goes in the Regular Items tab, prints on the common card, and its Attunement column is its cost. In the editor, the **Regular Item** tab has a Cost field. Create Item on the Regular Items list tab starts there.
 - **Spell filters:** drag either end of the **Level** slider to pick a range of levels (cantrips to 9th). Class pills, and the School, Casting Time and Range pills under **More filters**, show everything until you pick some, then show spells matching any of the ones picked. Components (V, S, M), Concentration and Ritual can each be Any, Has/Yes or Without/No. **Reset filters** clears them all. The C and R tags in the list mark concentration and ritual spells.
@@ -100,7 +114,7 @@ Use a different CSV with `BuildSingleHtml.BAT --csv MyOtherItems.csv`.
   - **Loot:** how many items, the party's level (which rarities show up, roughly following the DMG's treasure tables), the kind of loot, and whether regular gear is mixed in.
   - **Spellbook:** how many spells, the class, a level range and a school. Spells are spread evenly over the levels. Unearthed Arcana spells are left out unless ticked.
   - **✖** on an entry removes it and puts a new random one in its place (never one you removed). **Start Over** rerolls the whole list, and **Add to Queue** adds them all. Click an entry to see its card on the right (on phones, the card replaces the list until **Back to list**); click the card for full details.
-- **Source filter:** the page builds its source list (with item counts) from the `Source` column, so new books and homebrew CSVs appear automatically. An item with several sources, separated by commas, counts under each one. Slightly different spellings of the same book show up as separate entries, so fix those in the data.
+- **Source filter:** the page builds its source list (with item counts) from the `Source` column, so new books and homebrew CSVs appear automatically. An item with several sources, separated by commas, counts under each one. Slightly different spellings of the same book show up as separate entries. The scrapers correct the ones the wiki has (`SOURCE_FIXES` in `DataGather.py`, which `SpellGather.py` uses too): add a line there if a new one turns up, then re-run the scraper with `--cached`. A source written "Book A/Book B" is split into both books.
 - **Custom items:** **Create Item** (next to the CSV box) and **Customize Card** (under the card preview) open an editor with a live card preview. Its **Magic Item / Regular Item / Spell** tabs pick the kind of card, each with its own fields. New items are marked "custom" in the list. A changed built-in item that keeps its name and rarity is marked "edited" and replaces the original until you choose **Restore Original**. When editing your own card, **Save Changes** updates it and **Save as New Item** keeps it and saves a copy (give the copy a different name or rarity).
 - **Loading CSV files:** each row is added as if you had made it with **Create Item**, so it's marked "custom", or "edited" when it matches a built-in item's name and rarity. Every file you load adds to what's already there. A row with the same name and rarity as an item you already added replaces it. **Remove all added items** clears every custom and edited item.
 - **Saved in the browser:** custom items and items loaded from CSV files are remembered by the browser that added them (its local storage), so they're still there next visit. They don't carry over to other browsers or computers and aren't added to `items.csv`. **Download added items** saves them all as `my-items.csv` in the same format, which you can load into another browser with "Choose Files" or add to `items.csv`.

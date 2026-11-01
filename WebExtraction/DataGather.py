@@ -29,6 +29,35 @@ VARIANT_HEADING = re.compile(
     r'^\*\*(?P<label>[^*]+?)\s*\((?P<rarity>common|uncommon|rare|very rare|legendary|artifact)\)\.?\s*\*\*\.?\s*(?P<rest>.*)$',
     re.IGNORECASE)
 
+SOURCE_LINE = re.compile(r'^Sources?\s*(?::|\s-\s|\s–\s)\s*', re.IGNORECASE)
+
+# The wiki names a few books differently from page to page. Each is corrected to the name the other pages use, so the
+# card maker's source filter has one entry per book. A value with ", " counts under each of those books.
+SOURCE_FIXES = {
+    "Critical Role: Call of the Netherdeep": "Critical Role - Call of the Netherdeep",
+    "Dungeons and Dragons - Honor Among Thieves.": "Dungeons and Dragons - Honor Among Thieves",
+    "Lost Mine of Phandelver and Phandelver and Below = The Shattered Obelisk": "Lost Mine of Phandelver, Phandelver and Below - The Shattered Obelisk",
+    "Lost Mine of Phandelver and Phandelver and Below: The Shattered Obelisk": "Lost Mine of Phandelver, Phandelver and Below - The Shattered Obelisk",
+    # Tyranny of Dragons is the reissue of Hoard of the Dragon Queen and The Rise of Tiamat
+    "Tyranny of the Dragonqueen (Errata)": "Tyranny of Dragons",
+    "The Rise of Tiamat": "Tyranny of Dragons",
+    "Acquisitions Inc.": "Acquisitions Incorporated",
+    # The card maker splits sources at commas, so this one can't keep its own
+    "Unearthed Arcana 66 - Fighter, Rogue, and Wizard": "Unearthed Arcana 66 - Fighter Rogue and Wizard",
+}
+
+def fix_source(text):
+    """The page's source text as one or more book names separated by ", ":
+    'Xanathar's Guide to Everything/Elemental Evil Player's Companion' -> 'Xanathar's Guide to Everything, Elemental Evil Player's Companion'"""
+    books = []
+    for part in text.split("/"):
+        part = re.sub(r'\s+', ' ', part).strip()
+        fixed = SOURCE_FIXES.get(part)
+        for book in (fixed.split(", ") if fixed else [part]):
+            if book and book not in books:
+                books.append(book)
+    return ", ".join(books) or "Unknown Source"
+
 def clean_rarity(text):
     """Drops parenthesised notes and trailing punctuation: 'Common.' -> 'Common'"""
     return re.sub(r'\([^)]*\)', '', text).strip().strip('.,;:').strip()
@@ -361,9 +390,11 @@ def my_function(URL, name):
     source = "Unknown Source"
     for idx, line in enumerate(clean_lines):
         normalized = line.replace("**", "").replace("*", "").strip()
-        if normalized.startswith("Source:"):
+        # Usually "Source: X", but some pages have "Source - X" or "Sources: X"
+        match = SOURCE_LINE.match(normalized)
+        if match:
             source_idx = idx
-            source = normalized.replace("Source:", "").strip()
+            source = normalized[match.end():].strip()
             break
 
     # Extract our metadata and descriptions relative to where the Source identifier was found
@@ -389,6 +420,7 @@ def my_function(URL, name):
             source = clean_lines[0].replace("Source:", "").replace("**", "").replace("*", "").strip()
             line1 = clean_lines[1] if len(clean_lines) > 1 else "Unknown Type, Common"
             description_lines = clean_lines[2:] if len(clean_lines) > 2 else []
+    source = fix_source(source)
 
     # Clean up markdown styling from structural metadata elements for property calculations
     line1_clean = line1.replace("**", "").replace("*", "")

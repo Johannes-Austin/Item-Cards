@@ -22,7 +22,7 @@ import time
 from bs4 import BeautifulSoup as bs
 
 # Downloading (and the raw_pages cache, including --cached) works the same as for magic items
-from DataGather import fetch_page, tags_to_markdown, table_to_markdown, headers
+from DataGather import fetch_page, tags_to_markdown, table_to_markdown, headers, fix_source
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 csv_file = os.path.join(BASE_DIR, "spells.csv")
@@ -140,7 +140,7 @@ def parse_spell(level, name, school, url, listed_classes):
     # Optional class spells keep the note in the class list ("Druid (Optional)") but filter as the class
     class_names = ", ".join(re.sub(r'\s*\(optional\)', ' (Optional)', c, flags=re.I) for c in classes)
 
-    row = [name, "spell", "", item_type, source, "\n".join(description), url, ""]
+    row = [name, "spell", "", item_type, fix_source(source), "\n".join(description), url, ""]
     row += [str(level), school, get("Casting Time"), get("Range"), get("Components"), get("Duration"), class_names]
     return row
 

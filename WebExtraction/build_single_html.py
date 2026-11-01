@@ -1,6 +1,7 @@
 """
 Builds a single-file version of the card maker by embedding items.csv (magic items),
-mundaneItems.csv (regular items) and spells.csv (spells) into template.html.
+mundaneItems.csv (regular items), spells.csv (spells), and open5eItems.csv and open5eSpells.csv
+(secondary items and spells from third-party books) into template.html.
 
     python build_single_html.py
     python build_single_html.py --csv MyOtherItems.csv --out index.html
@@ -60,11 +61,13 @@ def check_csv(path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Embed items.csv, mundaneItems.csv and spells.csv into the card maker HTML to make one file.")
+    parser = argparse.ArgumentParser(description="Embed items.csv, mundaneItems.csv, spells.csv, open5eItems.csv and open5eSpells.csv into the card maker HTML to make one file.")
     parser.add_argument("--template", default=os.path.join(HERE, "template.html"), help="the card maker template HTML (default: template.html)")
     parser.add_argument("--csv", default=os.path.join(HERE, "items.csv"), help="the magic items CSV to embed (default: items.csv)")
     parser.add_argument("--mundane-csv", default=os.path.join(HERE, "mundaneItems.csv"), help="the regular items CSV to embed (default: mundaneItems.csv; skipped if it doesn't exist)")
     parser.add_argument("--spells-csv", default=os.path.join(HERE, "spells.csv"), help="the spells CSV to embed (default: spells.csv; skipped if it doesn't exist)")
+    parser.add_argument("--secondary-csv", default=os.path.join(HERE, "open5eItems.csv"), help="the secondary (third-party) items CSV to embed (default: open5eItems.csv; skipped if it doesn't exist)")
+    parser.add_argument("--secondary-spells-csv", default=os.path.join(HERE, "open5eSpells.csv"), help="the secondary (third-party) spells CSV to embed (default: open5eSpells.csv; skipped if it doesn't exist)")
     parser.add_argument("--out", default=os.path.join(OUT_DIR, "index.html"), help="the HTML file to create (default: index.html in the main CardHTML folder)")
     args = parser.parse_args()
 
@@ -75,10 +78,12 @@ def main():
     if os.path.abspath(args.out) == os.path.abspath(args.template):
         sys.exit("Error: the output file would overwrite the template. Choose a different --out name.")
 
-    # (element id, CSV path, label) for each CSV to embed. The regular items and spells are optional.
+    # (element id, CSV path, label) for each CSV to embed. The regular items, spells and secondary items are optional.
     embeds = [("embeddedCsv", args.csv, "magic items")]
     for element_id, path, label, bat in (("embeddedMundaneCsv", args.mundane_csv, "regular items", "RunMundaneGather.BAT"),
-                                         ("embeddedSpellsCsv", args.spells_csv, "spells", "RunSpellGather.BAT")):
+                                         ("embeddedSpellsCsv", args.spells_csv, "spells", "RunSpellGather.BAT"),
+                                         ("embeddedSecondaryCsv", args.secondary_csv, "secondary items", "RunOpen5eGather.BAT"),
+                                         ("embeddedSecondarySpellsCsv", args.secondary_spells_csv, "secondary spells", "RunOpen5eGather.BAT")):
         if os.path.exists(path):
             embeds.append((element_id, path, label))
         else:

@@ -101,6 +101,8 @@
         .data-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 10px; }
         .csv-box { flex: 1; min-width: 220px; font-size: 12px; color: #555; }
         .csv-box input[type="file"] { padding: 4px; margin: 3px 0 0; font-size: 12px; }
+        .secondary-toggle { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; white-space: nowrap; cursor: pointer; }
+        .secondary-toggle input { margin: 0; }
         .custom-badge { display: inline-block; background: #fff3cd; color: #7a5a00; border: 1px solid #f0d27a; border-radius: 4px; font-size: 11px; font-weight: bold; padding: 0 5px; margin-left: 6px; vertical-align: middle; }
         .custom-badge.edited { background: #e0ecff; color: #1d4f9c; border-color: #a9c6f5; }  /* a built-in item you changed */
 
@@ -370,6 +372,9 @@
         </div>
         <div style="font-size: 13px; color: #555; margin: -4px 0 12px;">
             <span id="dataStatusText"></span>
+            <label id="secondaryToggle" class="secondary-toggle" style="display: none;" title="Items and spells from third-party books (open5eItems.csv, open5eSpells.csv)">
+                <input type="checkbox" id="includeSecondary" checked onchange="setIncludeSecondary(this.checked)"> Include secondary entries
+            </label>
             <button id="downloadAdded" style="display: none; padding: 2px 8px; font-size: 12px; margin-left: 6px;" onclick="downloadAddedItems()">⬇ Download added items</button>
             <button id="clearAdded" class="btn-secondary" style="display: none; padding: 2px 8px; font-size: 12px; margin-left: 6px;" onclick="clearAddedItems()">Remove all added items</button>
         </div>
@@ -696,10 +701,13 @@
 
 <div class="print-container" id="printContainer"></div>
 
-<!-- The built-in items. build_single_html.py replaces the "" below with the contents of items.csv, mundaneItems.csv and spells.csv. -->
+<!-- The built-in items. build_single_html.py replaces the "" below with the contents of items.csv, mundaneItems.csv, spells.csv
+     and open5eItems.csv / open5eSpells.csv (the secondary items and spells, from third-party books). -->
 <script id="embeddedCsv" type="application/json">""</script>
 <script id="embeddedMundaneCsv" type="application/json">""</script>
 <script id="embeddedSpellsCsv" type="application/json">""</script>
+<script id="embeddedSecondaryCsv" type="application/json">""</script>
+<script id="embeddedSecondarySpellsCsv" type="application/json">""</script>
 
 <script>
     let allItems = [], printQueue = [], selectedId = null;
@@ -712,15 +720,26 @@
     const hasName = (item) => item && item.Name && item.Name.trim() !== '';
     const itemKey = (item) => item.Name.trim().toLowerCase() + '|' + (item.Rarity || '').trim().toLowerCase();
 
+    // Secondary items (third-party books, marked .secondary) can be left out with the "Include secondary entries" box
+    const SECONDARY_STORAGE_KEY = 'cardMaker.includeSecondary';
+    let includeSecondary = true;
+    try { includeSecondary = localStorage.getItem(SECONDARY_STORAGE_KEY) !== 'false'; } catch (err) { }
+    function setIncludeSecondary(include) {
+        includeSecondary = include;
+        try { localStorage.setItem(SECONDARY_STORAGE_KEY, String(include)); } catch (err) { }
+        rebuildItems();
+    }
+
     function rebuildItems() {
         // A custom item with the same name and rarity as a built-in item replaces it and is marked "edited"; the rest are appended.
-        const baseKeys = new Set(baseItems.map(itemKey));
+        const shownBase = includeSecondary ? baseItems : baseItems.filter(it => !it.secondary);
+        const baseKeys = new Set(shownBase.map(itemKey));
         const added = new Map();
         customItems.forEach((it, i) => {
             const key = itemKey(it);
             added.set(key, { ...it, custom: true, customIndex: i, edited: baseKeys.has(key) });
         });
-        const merged = baseItems.map(it => added.get(itemKey(it)) || it)
+        const merged = shownBase.map(it => added.get(itemKey(it)) || it)
             .concat(Array.from(added.entries()).filter(([k]) => !baseKeys.has(k)).map(([, it]) => it));
 
         allItems = merged.map((item, i) => ({ ...item, id: i, sources: itemSources(item) }));
@@ -748,14 +767,13 @@
     }
 
     function updateDataStatus() {
-        const regular = baseItems.filter(isMundane).length, magic = baseItems.length - regular;
-        let text = !baseItems.length ? 'No built-in items. Choose a CSV file to load items.'
-            : `${magic} built-in magic items` + (regular ? `, ${regular} regular items` : '');
-        const edited = allItems.filter(it => it.edited).length;
-        const custom = allItems.filter(it => it.custom).length - edited;
-        if (custom) text += ` + ${custom} custom`;
-        if (edited) text += ` (${edited} edited)`;
-        document.getElementById('dataStatusText').textContent = text;
+        const secondary = baseItems.filter(it => it.secondary).length, standard = baseItems.length - secondary;
+        const count = (n) => n.toLocaleString();
+        document.getElementById('dataStatusText').textContent = !baseItems.length && !customItems.length
+            ? 'No built-in items. Choose a CSV file to load items.'
+            : `${count(standard)} standard entries, ${count(secondary)} secondary entries, ${count(customItems.length)} user entries`;
+        document.getElementById('secondaryToggle').style.display = secondary ? '' : 'none';
+        document.getElementById('includeSecondary').checked = includeSecondary;
         document.getElementById('clearAdded').style.display = customItems.length ? 'inline-block' : 'none';
         document.getElementById('downloadAdded').style.display = customItems.length ? 'inline-block' : 'none';
     }
@@ -2221,10 +2239,12 @@
 
     // --- 9. Load the items embedded in this file, plus this browser's saved custom and CSV items ---
     loadSavedItems();
-    ['embeddedCsv', 'embeddedMundaneCsv', 'embeddedSpellsCsv'].forEach(elementId => {
+    ['embeddedCsv', 'embeddedMundaneCsv', 'embeddedSpellsCsv', 'embeddedSecondaryCsv', 'embeddedSecondarySpellsCsv'].forEach(elementId => {
         try {
             const embedded = JSON.parse(document.getElementById(elementId).textContent || '""');
-            if (embedded) baseItems.push(...Papa.parse(embedded, { header: true, skipEmptyLines: true }).data.filter(hasName));
+            const secondary = elementId.startsWith('embeddedSecondary');
+            if (embedded) baseItems.push(...Papa.parse(embedded, { header: true, skipEmptyLines: true }).data.filter(hasName)
+                .map(item => secondary ? { ...item, secondary: true } : item));
         } catch (err) {
             console.error(`Could not read the embedded items (${elementId}):`, err);
         }
