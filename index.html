@@ -151,7 +151,13 @@
         /* Generate Queue window */
         .btn-generate { background: #6f42c1; }
         .btn-generate:hover { background: #59359a; }
-        .modal-content.generator-content { max-width: 560px; max-height: 90vh; display: flex; flex-direction: column; gap: 12px; box-sizing: border-box; }
+        .modal-content.generator-content { max-width: 960px; width: 95%; max-height: 92vh; display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; box-sizing: border-box; }
+        .gen-main { flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+        .gen-preview { flex: 0 0 auto; width: calc(2.5in * var(--card-scale) + 18px); margin-top: 24px; }   /* clears the close button */
+        .gen-preview .preview-wrap { max-height: calc(92vh - 110px); min-height: 0; }
+        .gen-preview .preview-placeholder { width: calc(2.5in * var(--card-scale)); height: calc(3.5in * var(--card-scale)); }
+        .gen-preview .preview-hint:empty { display: none; }
+        .gen-back { display: none; margin-bottom: 12px; }
         .gen-form { display: none; flex-direction: column; gap: 10px; }
         .gen-form.active { display: flex; }
         .gen-form label { display: flex; flex-direction: column; gap: 3px; font-size: 13px; font-weight: bold; color: #444; }
@@ -167,8 +173,10 @@
         .gen-item { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-bottom: 1px solid #f0f0f0; }
         .gen-item:last-child { border-bottom: none; }
         .gen-item-text { flex: 1; min-width: 0; }
-        .gen-item-name { font-weight: bold; cursor: pointer; }
-        .gen-item-name:hover { text-decoration: underline; }
+        .gen-item-text { cursor: pointer; }
+        .gen-item-name { font-weight: bold; }
+        .gen-item:hover { background: #f1f3f5; }
+        .gen-item.selected { background: #cfe2ff; }
         .gen-item-meta { font-size: 12px; color: #666; }
         .gen-item.swapped { animation: gen-flash 1.2s ease-out; }
         @keyframes gen-flash { from { background: #d1e7dd; } to { background: transparent; } }
@@ -305,7 +313,14 @@
             /* Item editor: full screen, with Edit / Preview tabs instead of side by side */
             .modal-overlay { align-items: stretch; }
             .modal-content.editor-content { width: 100%; max-width: none; max-height: none; height: 100%; border-radius: 0; padding: 16px; display: block; overflow-y: auto; }
-            .modal-content.generator-content { width: 100%; max-width: none; max-height: none; height: 100%; border-radius: 0; padding: 16px; }
+            .modal-content.generator-content { width: 100%; max-width: none; max-height: none; height: 100%; border-radius: 0; padding: 16px; flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
+            /* Phones: the card replaces the list until "Back to list" */
+            .gen-main { flex: 1; min-height: 0; }
+            .gen-preview { display: none; width: auto; margin-top: 0; }
+            .generator-content.show-preview .gen-main { display: none; }
+            .generator-content.show-preview .gen-preview { display: block; }
+            .gen-back { display: inline-block; }
+            .gen-preview .preview-wrap { width: auto; max-height: none; align-items: center; overflow: visible; }
             .gen-form input[type="number"], .gen-form select { font-size: 16px; }
             .gen-list { max-height: none; flex: 1; }
             .gen-item .btn-remove { padding: 8px 12px; }
@@ -570,7 +585,8 @@
 <div class="modal-overlay" id="generatorModal" onclick="if (event.target === this) closeGenerator()">
     <div class="modal-content generator-content">
         <button class="modal-close" onclick="closeGenerator()">✖</button>
-        <h2 style="margin: 0 0 12px;">🎲 Generate Queue</h2>
+        <div class="gen-main">
+        <h2 style="margin: 0;">🎲 Generate Queue</h2>
         <div class="kind-tabs" role="tablist">
             <button role="tab" data-gen="shop" onclick="setGeneratorTab('shop')">🏪 Shop</button>
             <button role="tab" data-gen="loot" onclick="setGeneratorTab('loot')">💰 Loot</button>
@@ -649,6 +665,15 @@
                 <button class="btn-secondary" onclick="runGenerator()">↻ Start Over</button>
                 <button class="btn-add" id="genAddBtn" onclick="addGeneratedToQueue()">+ Add to Queue</button>
             </div>
+        </div>
+        </div>
+
+        <!-- The card of the entry clicked in the list (on phones it replaces the list until Back is tapped) -->
+        <div class="gen-preview">
+            <button class="btn-secondary gen-back" onclick="showGeneratorList()">← Back to list</button>
+            <div class="preview-placeholder" id="genPreviewPlaceholder">Generate a list, then click an entry to see its card here.</div>
+            <div class="preview-wrap" id="genPreview"></div>
+            <div class="preview-hint" id="genPreviewHint"></div>
         </div>
     </div>
 </div>
@@ -1842,6 +1867,7 @@
     // given set of keys yet (or null when nothing is left). The list is built by calling it repeatedly, and removing
     // an entry calls it once more to fill the gap. Removed entries are remembered so they don't come back.
     let genTab = 'shop', genPicker = null, genList = [], genRemoved = new Set();
+    let genSelected = null;   // index in genList of the entry shown in the preview
 
     const pickRandom = (list) => list[Math.floor(Math.random() * list.length)];
     function pickWeighted(weights) {   // { key: weight } -> a key, chosen in proportion to its weight
@@ -1979,11 +2005,50 @@
 
         setGeneratorTab(genTab);
         document.getElementById('generatorModal').style.display = 'flex';
+        previewGenerated(genSelected);   // again now that it's visible, so the card text is measured properly
     }
-    function closeGenerator() { document.getElementById('generatorModal').style.display = 'none'; }
+    function closeGenerator() {
+        document.getElementById('generatorModal').style.display = 'none';
+        showGeneratorList();
+    }
+
+    // Shows a generated entry's card(s) in the preview. openOnPhone: a tap on the entry, which on phones swaps the list for the card.
+    function previewGenerated(index, openOnPhone) {
+        genSelected = index === null || index >= genList.length ? null : index;
+        const item = genSelected === null ? null : genList[genSelected];
+        if (item && openOnPhone && phoneLayout.matches) document.querySelector('.generator-content').classList.add('show-preview');
+
+        const wrap = document.getElementById('genPreview');
+        wrap.innerHTML = '';
+        document.getElementById('genPreviewPlaceholder').style.display = item ? 'none' : '';
+        wrap.style.display = item ? '' : 'none';
+        document.querySelectorAll('#genList .gen-item').forEach((row, i) => row.classList.toggle('selected', i === genSelected));
+        if (!item) { document.getElementById('genPreviewHint').textContent = ''; return; }
+
+        const specs = getCardSpecs(item);
+        specs.forEach(spec => {
+            const slot = document.createElement('div');
+            slot.className = 'preview-slot';
+            const card = buildCard(spec);
+            card.title = 'Click for full details';
+            card.addEventListener('click', () => showItemDetails(item.id));
+            slot.appendChild(card);
+            wrap.appendChild(slot);
+        });
+        wrap.scrollTop = 0;
+        fitText(wrap);
+        fontsReady.then(() => fitText(wrap));
+        document.getElementById('genPreviewHint').textContent = specs.length > 1
+            ? `${specs.length} cards. Click a card for full details` : 'Click the card for full details';
+    }
+
+    // Phones: back from the card to the list
+    function showGeneratorList() {
+        document.querySelector('.generator-content').classList.remove('show-preview');
+    }
 
     function setGeneratorTab(tab) {
-        if (tab !== genTab) { genList = []; genPicker = null; }   // a list belongs to the tab that made it
+        if (tab !== genTab) { genList = []; genPicker = null; genSelected = null; }   // a list belongs to the tab that made it
         genTab = tab;
         document.querySelectorAll('#generatorModal .kind-tabs button').forEach(b => {
             b.classList.toggle('active', b.dataset.gen === tab);
@@ -2008,6 +2073,7 @@
         }
         document.getElementById('genNote').textContent = genList.length < count
             ? (genList.length ? `Only ${genList.length} fit these choices.` : 'Nothing fits these choices. Try a different shop, wealth or level range.') : '';
+        genSelected = genList.length ? 0 : null;   // show the first entry's card
         renderGeneratorList();
     }
 
@@ -2018,6 +2084,9 @@
         const replacement = genPicker ? genPicker(used) : null;
         if (replacement) genList[index] = replacement; else genList.splice(index, 1);
         document.getElementById('genNote').textContent = replacement ? '' : 'Nothing else fits these choices, so that entry was removed without a replacement.';
+        // The preview follows: a swapped entry shows its replacement; the list closing up shifts the selection with it
+        if (genSelected !== null && !replacement && genSelected > index) genSelected--;
+        if (genSelected !== null && genSelected >= genList.length) genSelected = genList.length ? genList.length - 1 : null;
         renderGeneratorList(replacement ? index : null);
     }
 
@@ -2033,8 +2102,8 @@
         document.getElementById('genResultsTitle').textContent = `${genList.length} ${genTab === 'spellbook' ? (genList.length === 1 ? 'spell' : 'spells') : (genList.length === 1 ? 'item' : 'items')}`;
         document.getElementById('genList').innerHTML = genList.map((item, i) => `
             <div class="gen-item${i === swappedIndex ? ' swapped' : ''}">
-                <div class="gen-item-text">
-                    <div class="gen-item-name" title="Show details" onclick="showItemDetails(${item.id})">${escapeHtml(item.Name)}</div>
+                <div class="gen-item-text" title="Show its card" onclick="previewGenerated(${i}, true)">
+                    <div class="gen-item-name">${escapeHtml(item.Name)}</div>
                     <div class="gen-item-meta">${escapeHtml(generatedMeta(item))}</div>
                 </div>
                 <button class="btn-remove" title="Remove (another takes its place)" aria-label="Remove ${escapeHtml(item.Name).replace(/"/g, '&quot;')}" onclick="removeGenerated(${i})">✖</button>
@@ -2042,6 +2111,7 @@
         const addBtn = document.getElementById('genAddBtn');
         addBtn.textContent = `+ Add ${genList.length} to Queue`;
         addBtn.disabled = !genList.length;
+        previewGenerated(genSelected);
     }
 
     function addGeneratedToQueue() {
@@ -2052,6 +2122,7 @@
         });
         genList = [];
         genPicker = null;
+        genSelected = null;
         closeGenerator();
         renderGeneratorList();
         if (phoneLayout.matches) openSheet('queue');
