@@ -77,7 +77,7 @@ To refresh it:
 2. Save that page's items as `raw_pages\griffons_ledger.json`: a list of `{name, meta, date, html, links}` from each item's `<section>` (`meta` is the "Wondrous item, rare (requires attunement)" line, `html` is the item's text).
 3. Run `python GriffonsGather.py`.
 
-- The rules text is converted like the wiki items (bold, italics, lists and tables). Source is "The Griffon's Saddlebag" and URL is the item's art post.
+- The rules text is converted like the wiki items (bold, italics, lists and tables). Source is "The Griffon's Saddlebag" and URL is the item's art post on Patreon.
 - About 40 items list several rarities ("common or uncommon", "varies"); they show under Other / Varies. The script lists them.
 - An item with the same name and rarity as a built-in item gets " (Griffon's Saddlebag)" added to its name, so loading the file doesn't replace the other one.
 

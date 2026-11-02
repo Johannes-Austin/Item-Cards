@@ -90,7 +90,8 @@ if __name__ == "__main__":
             name += " (Griffon's Saddlebag)"
         if rarity not in STANDARD_RARITIES:
             odd_rarity.append(f"{item['name']} ({rarity or item['meta']})")
-        url = next((link["href"] for link in item.get("links", []) if link.get("text") == "Art"), "")
+        # The item's art post on Patreon: an "Art" link, or one "Art and Cards" link
+        url = next((link["href"] for link in item.get("links", []) if link.get("text", "").startswith("Art")), "")
         rows.append([name, rarity, attunement, item_type, SOURCE, description(item["html"]), url,
                      "From The Griffon's Saddlebag's Ledger+ (personal use)"])
 
