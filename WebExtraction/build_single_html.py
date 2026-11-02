@@ -10,10 +10,18 @@ The page still has its "choose file" box, so anyone can add more items from thei
 the built-in items are always kept. The card background images (common.png, rare.png, ...)
 are NOT embedded: keep them in the same folder as the output HTML (e.g. on GitHub Pages).
 
-Only the Python standard library is used.
+Personal items (griffonsSaddlebag.csv) are embedded encrypted, so only someone with the passphrase can see them
+in the page. The passphrase is typed when building (or set in the CARDMAKER_PASSPHRASE environment variable);
+it is never saved. Without it, the encrypted copy already in index.html is kept.
+
+Only the Python standard library is used, plus the "cryptography" package for the personal items.
 """
 import argparse
+import base64
 import csv
+import getpass
+import gzip
+import hashlib
 import io
 import json
 import os
@@ -60,6 +68,47 @@ def check_csv(path):
     return csv_text, encoding, item_count
 
 
+# --- Personal items: embedded encrypted, unlocked in the page with a passphrase ---
+# AES-256-GCM with a key made from the passphrase by PBKDF2-SHA256; the page decrypts it with the browser's Web Crypto.
+PERSONAL_ITERATIONS = 600_000
+PASSPHRASE_ENV = "CARDMAKER_PASSPHRASE"
+
+
+def personal_key(passphrase, salt, iterations):
+    return hashlib.pbkdf2_hmac("sha256", passphrase.encode("utf-8"), salt, iterations, dklen=32)
+
+
+def encrypt_personal(csv_text, passphrase, item_count):
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM   # only needed when there are personal items
+    salt, iv = os.urandom(16), os.urandom(12)
+    data = AESGCM(personal_key(passphrase, salt, PERSONAL_ITERATIONS)).encrypt(iv, gzip.compress(csv_text.encode("utf-8")), None)
+    b64 = lambda raw: base64.b64encode(raw).decode("ascii")
+    return {"v": 1, "iterations": PERSONAL_ITERATIONS, "salt": b64(salt), "iv": b64(iv), "count": item_count, "data": b64(data)}
+
+
+def decrypt_personal(payload, passphrase):
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    raw = lambda name: base64.b64decode(payload[name])
+    key = personal_key(passphrase, raw("salt"), payload["iterations"])
+    return gzip.decompress(AESGCM(key).decrypt(raw("iv"), raw("data"), None)).decode("utf-8")
+
+
+def ask_passphrase():
+    """The passphrase from CARDMAKER_PASSPHRASE, or typed (twice) when run by hand; None to skip"""
+    if os.environ.get(PASSPHRASE_ENV):
+        return os.environ[PASSPHRASE_ENV]
+    if not sys.stdin.isatty():
+        return None
+    print("\nThe personal items are embedded encrypted. Type the passphrase that unlocks them in the page")
+    print("(nothing shows as you type), or just press Enter to keep the ones already in index.html.")
+    first = getpass.getpass("Passphrase: ")
+    if not first:
+        return None
+    if getpass.getpass("Type it again: ") != first:
+        sys.exit("Error: the two passphrases don't match. Nothing was built.")
+    return first
+
+
 def main():
     parser = argparse.ArgumentParser(description="Embed items.csv, mundaneItems.csv, spells.csv, open5eItems.csv and open5eSpells.csv into the card maker HTML to make one file.")
     parser.add_argument("--template", default=os.path.join(HERE, "template.html"), help="the card maker template HTML (default: template.html)")
@@ -68,6 +117,7 @@ def main():
     parser.add_argument("--spells-csv", default=os.path.join(HERE, "spells.csv"), help="the spells CSV to embed (default: spells.csv; skipped if it doesn't exist)")
     parser.add_argument("--secondary-csv", default=os.path.join(HERE, "open5eItems.csv"), help="the secondary (third-party) items CSV to embed (default: open5eItems.csv; skipped if it doesn't exist)")
     parser.add_argument("--secondary-spells-csv", default=os.path.join(HERE, "open5eSpells.csv"), help="the secondary (third-party) spells CSV to embed (default: open5eSpells.csv; skipped if it doesn't exist)")
+    parser.add_argument("--personal-csv", default=os.path.join(HERE, "griffonsSaddlebag.csv"), help="personal items to embed encrypted, unlocked with a passphrase (default: griffonsSaddlebag.csv; skipped if it doesn't exist)")
     parser.add_argument("--out", default=os.path.join(OUT_DIR, "index.html"), help="the HTML file to create (default: index.html in the main CardHTML folder)")
     args = parser.parse_args()
 
@@ -103,6 +153,29 @@ def main():
         output = pattern.sub(lambda m: m.group(1) + payload + m.group(3), output, count=1)
         results.append((element_id, path, label, csv_text, encoding, item_count))
 
+    # Personal items: encrypted with the passphrase. Without one, the encrypted copy already in index.html is kept,
+    # so a rebuild never drops them by accident (but it also won't pick up changes to the CSV).
+    personal_pattern = placeholder("embeddedPersonal")
+    personal, passphrase, personal_note = None, None, ""
+    if os.path.exists(args.personal_csv):
+        passphrase = ask_passphrase()
+        if passphrase:
+            csv_text, encoding, item_count = check_csv(args.personal_csv)
+            personal = encrypt_personal(csv_text, passphrase, item_count)
+            personal_note = f"Embedded {item_count} personal items from {args.personal_csv}, encrypted."
+    if personal is None and os.path.exists(args.out):
+        with open(args.out, "r", encoding="utf-8") as f:
+            previous = personal_pattern.search(f.read())
+        kept = json.loads(previous.group(2)) if previous else None
+        if kept:
+            personal = kept
+            personal_note = (f"Kept the {kept.get('count', '?')} encrypted personal items already in index.html "
+                             f"(set {PASSPHRASE_ENV} or type the passphrase to update them from the CSV).")
+    if personal is not None:
+        output = personal_pattern.sub(lambda m: m.group(1) + json.dumps(personal) + m.group(3), output, count=1)
+    elif os.path.exists(args.personal_csv):
+        personal_note = "Warning: no passphrase, so the personal items are not in the page."
+
     with open(args.out, "w", encoding="utf-8", newline="") as f:
         f.write(output)
 
@@ -114,6 +187,12 @@ def main():
         if embedded != csv_text:
             sys.exit(f"Error: the embedded {label} do not match {path}. Something went wrong; the output should not be used.")
         print(f"Embedded {item_count} {label} from {path} (read as {encoding}).")
+    if passphrase and personal is not None:
+        embedded = json.loads(personal_pattern.search(written).group(2))
+        if decrypt_personal(embedded, passphrase) != check_csv(args.personal_csv)[0]:
+            sys.exit("Error: the encrypted personal items don't decrypt back to the CSV. The output should not be used.")
+    if personal_note:
+        print(personal_note)
 
     size_kb = os.path.getsize(args.out) / 1024
     print(f"Created {os.path.abspath(args.out)} ({size_kb:,.0f} KB).")

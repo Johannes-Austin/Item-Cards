@@ -63,10 +63,28 @@ Run these in order, by double-clicking the `.BAT` files in this folder.
 - Saves the downloads in `raw_pages\open5e_*.json`. Run `RunOpen5eGather.BAT --cached` to rebuild the CSVs from them without downloading.
 - Step 3 embeds both files too (if they exist) as the page's **secondary entries**. Run step 3 afterwards.
 
+### The Griffon's Saddlebag items (personal, locked with a passphrase)
+`GriffonsGather.py` turns The Griffon's Saddlebag's item list into **`griffonsSaddlebag.csv`**. These items are the creator's paid content (their Ledger+ subscription), so they're for your own printing only:
+
+- `.gitignore` keeps the CSV out of the repository.
+- Step 3 embeds them in `index.html` **encrypted** (AES-256, with a key made from a passphrase). Anyone can see the site, but without the passphrase the items are unreadable data.
+- In the page, **🔒 Unlock personal items** (under the item counts) asks for the passphrase. The items then appear as secondary entries with the source "The Griffon's Saddlebag". That browser remembers the unlock, so on each PC you type it once; **Lock** makes it forget.
+- The passphrase is never saved anywhere. Step 3 asks for it (twice) when it runs. Press Enter instead to keep the encrypted items already in `index.html` (handy when only other things changed). To use a new passphrase, just type a new one; every browser then needs to unlock again.
+- A long passphrase of several unrelated words is much harder to guess, since anyone can download the encrypted copy and try passwords against it.
+
+To refresh it:
+1. Sign in to https://ledger.thegriffonssaddlebag.com and open its `/text` page, which lists every item.
+2. Save that page's items as `raw_pages\griffons_ledger.json`: a list of `{name, meta, date, html, links}` from each item's `<section>` (`meta` is the "Wondrous item, rare (requires attunement)" line, `html` is the item's text).
+3. Run `python GriffonsGather.py`.
+
+- The rules text is converted like the wiki items (bold, italics, lists and tables). Source is "The Griffon's Saddlebag" and URL is the item's art post.
+- About 40 items list several rarities ("common or uncommon", "varies"); they show under Other / Varies. The script lists them.
+- An item with the same name and rarity as a built-in item gets " (Griffon's Saddlebag)" added to its name, so loading the file doesn't replace the other one.
+
 ### 3. Build the single HTML file
 **`BuildSingleHtml.BAT`** runs `build_single_html.py`.
 
-- Embeds `items.csv` (magic items), `mundaneItems.csv` (regular items), `spells.csv` (spells), and `open5eItems.csv` and `open5eSpells.csv` (secondary items and spells) into `template.html` and creates **`..\index.html`** in the main CardHTML folder.
+- Embeds `items.csv` (magic items), `mundaneItems.csv` (regular items), `spells.csv` (spells), and `open5eItems.csv` and `open5eSpells.csv` (secondary items and spells), plus `griffonsSaddlebag.csv` encrypted (see above), into `template.html` and creates **`..\index.html`** in the main CardHTML folder.
 - Open `index.html` in a browser, or put it and the PNG images on GitHub Pages.
 - The page's "choose file" box still lets people add more items from their own CSV. The built-in items are kept.
 

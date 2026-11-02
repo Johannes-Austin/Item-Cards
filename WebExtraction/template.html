@@ -103,6 +103,11 @@
         .csv-box input[type="file"] { padding: 4px; margin: 3px 0 0; font-size: 12px; }
         .secondary-toggle { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; white-space: nowrap; cursor: pointer; }
         .secondary-toggle input { margin: 0; }
+        .personal-controls { margin-left: 10px; }
+        .personal-controls button { padding: 2px 8px; font-size: 12px; }
+        .personal-controls form { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 4px 0 0; }
+        .personal-controls input[type=password] { width: 160px; padding: 3px 6px; font-size: 13px; }
+        #personalMessage { color: #a12a2a; }
         .custom-badge { display: inline-block; background: #fff3cd; color: #7a5a00; border: 1px solid #f0d27a; border-radius: 4px; font-size: 11px; font-weight: bold; padding: 0 5px; margin-left: 6px; vertical-align: middle; }
         .custom-badge.edited { background: #e0ecff; color: #1d4f9c; border-color: #a9c6f5; }  /* a built-in item you changed */
 
@@ -375,6 +380,17 @@
             <label id="secondaryToggle" class="secondary-toggle" style="display: none;" title="Items and spells from third-party books (open5eItems.csv, open5eSpells.csv)">
                 <input type="checkbox" id="includeSecondary" checked onchange="setIncludeSecondary(this.checked)"> Include secondary entries
             </label>
+            <!-- Personal items are embedded encrypted (see build_single_html.py); the passphrase unlocks them in this browser -->
+            <span id="personalControls" class="personal-controls" style="display: none;">
+                <button type="button" id="personalUnlockBtn" class="btn-secondary" onclick="togglePersonalForm()">🔒 Unlock personal items</button>
+                <span id="personalUnlocked" style="display: none;">🔓 <span id="personalCount"></span> personal items
+                    <button type="button" class="btn-secondary" onclick="lockPersonal()">Lock</button></span>
+                <form id="personalForm" style="display: none;" onsubmit="unlockPersonal(event)">
+                    <input type="password" id="personalPassphrase" placeholder="Passphrase" autocomplete="current-password" aria-label="Passphrase">
+                    <button type="submit">Unlock</button>
+                    <span id="personalMessage" role="status"></span>
+                </form>
+            </span>
             <button id="downloadAdded" style="display: none; padding: 2px 8px; font-size: 12px; margin-left: 6px;" onclick="downloadAddedItems()">⬇ Download added items</button>
             <button id="clearAdded" class="btn-secondary" style="display: none; padding: 2px 8px; font-size: 12px; margin-left: 6px;" onclick="clearAddedItems()">Remove all added items</button>
         </div>
@@ -708,6 +724,8 @@
 <script id="embeddedSpellsCsv" type="application/json">""</script>
 <script id="embeddedSecondaryCsv" type="application/json">""</script>
 <script id="embeddedSecondarySpellsCsv" type="application/json">""</script>
+<!-- Personal items (griffonsSaddlebag.csv), encrypted by build_single_html.py: unreadable without the passphrase -->
+<script id="embeddedPersonal" type="application/json">null</script>
 
 <script>
     let allItems = [], printQueue = [], selectedId = null;
@@ -728,6 +746,65 @@
         includeSecondary = include;
         try { localStorage.setItem(SECONDARY_STORAGE_KEY, String(include)); } catch (err) { }
         rebuildItems();
+    }
+
+    // --- Personal items: embedded encrypted (AES-GCM, key from the passphrase by PBKDF2; see build_single_html.py) ---
+    // Once unlocked, this browser keeps the key (not the passphrase) so they open by themselves next time, until Lock.
+    const PERSONAL_KEY_STORAGE = 'cardMaker.personalKey';
+    let personalPayload = null, personalUnlocked = false;
+    const fromBase64 = (b64) => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const toBase64 = (bytes) => btoa(String.fromCharCode(...bytes));
+
+    async function personalKeyFromPassphrase(passphrase) {
+        const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(passphrase), 'PBKDF2', false, ['deriveBits']);
+        const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: fromBase64(personalPayload.salt),
+            iterations: personalPayload.iterations }, base, 256);
+        return new Uint8Array(bits);
+    }
+    // Decrypts and adds the personal items (they count as secondary entries); throws if the key is wrong
+    async function loadPersonal(rawKey) {
+        const key = await crypto.subtle.importKey('raw', rawKey, 'AES-GCM', false, ['decrypt']);
+        const zipped = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromBase64(personalPayload.iv) }, key, fromBase64(personalPayload.data));
+        const text = await new Response(new Blob([zipped]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+        const items = Papa.parse(text, { header: true, skipEmptyLines: true }).data.filter(hasName)
+            .map(item => ({ ...item, secondary: true, personal: true }));
+        baseItems = baseItems.filter(it => !it.personal).concat(items);
+        personalUnlocked = true;
+        rebuildItems();
+    }
+    async function unlockPersonal(event) {
+        event.preventDefault();
+        const input = document.getElementById('personalPassphrase'), message = document.getElementById('personalMessage');
+        if (!input.value) return;
+        message.textContent = 'Unlocking...';
+        try {
+            const rawKey = await personalKeyFromPassphrase(input.value);
+            await loadPersonal(rawKey);
+            try { localStorage.setItem(PERSONAL_KEY_STORAGE, toBase64(rawKey)); } catch (err) { }
+            input.value = '';
+            message.textContent = '';
+            document.getElementById('personalForm').style.display = 'none';
+        } catch (err) {
+            message.textContent = 'Wrong passphrase.';
+            input.select();
+        }
+    }
+    function lockPersonal() {
+        try { localStorage.removeItem(PERSONAL_KEY_STORAGE); } catch (err) { }
+        baseItems = baseItems.filter(it => !it.personal);
+        personalUnlocked = false;
+        rebuildItems();
+    }
+    function togglePersonalForm() {
+        const form = document.getElementById('personalForm');
+        form.style.display = form.style.display === 'none' ? '' : 'none';
+        if (form.style.display === '') document.getElementById('personalPassphrase').focus();
+    }
+    function updatePersonalControls() {
+        document.getElementById('personalControls').style.display = personalPayload ? '' : 'none';
+        document.getElementById('personalUnlockBtn').style.display = personalUnlocked ? 'none' : '';
+        document.getElementById('personalUnlocked').style.display = personalUnlocked ? '' : 'none';
+        document.getElementById('personalCount').textContent = baseItems.filter(it => it.personal).length.toLocaleString();
     }
 
     function rebuildItems() {
@@ -774,6 +851,7 @@
             : `${count(standard)} standard entries, ${count(secondary)} secondary entries, ${count(customItems.length)} user entries`;
         document.getElementById('secondaryToggle').style.display = secondary ? '' : 'none';
         document.getElementById('includeSecondary').checked = includeSecondary;
+        updatePersonalControls();
         document.getElementById('clearAdded').style.display = customItems.length ? 'inline-block' : 'none';
         document.getElementById('downloadAdded').style.display = customItems.length ? 'inline-block' : 'none';
     }
@@ -2249,8 +2327,17 @@
             console.error(`Could not read the embedded items (${elementId}):`, err);
         }
     });
+    try { personalPayload = JSON.parse(document.getElementById('embeddedPersonal').textContent || 'null'); } catch (err) { }
     rebuildItems();
     setTab('magic');
+    // Personal items this browser has unlocked before open by themselves (a rebuild with a new passphrase needs it again)
+    (() => {
+        let saved = null;
+        try { saved = localStorage.getItem(PERSONAL_KEY_STORAGE); } catch (err) { }
+        if (personalPayload && saved) loadPersonal(fromBase64(saved)).catch(() => {
+            try { localStorage.removeItem(PERSONAL_KEY_STORAGE); } catch (err) { }
+        });
+    })();
 </script>
 </body>
 </html>
