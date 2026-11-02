@@ -103,6 +103,15 @@
         .csv-box input[type="file"] { padding: 4px; margin: 3px 0 0; font-size: 12px; }
         .secondary-toggle { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; white-space: nowrap; cursor: pointer; }
         .secondary-toggle input { margin: 0; }
+        .art-controls { margin-left: 10px; white-space: nowrap; }
+        .art-controls button { padding: 2px 8px; font-size: 12px; }
+        .art-load { cursor: pointer; color: #1d4f9c; text-decoration: underline; }
+        #modalArtBox { display: none; text-align: center; margin: 12px 0 0; }
+        #modalArt { max-width: 100%; max-height: 45vh; border-radius: 6px; cursor: zoom-in; }
+        #modalArtBox button { display: block; margin: 8px auto 0; padding: 3px 10px; font-size: 13px; }
+        /* Full-screen art, to show players */
+        #artViewer { display: none; position: fixed; inset: 0; z-index: 1200; background: #000; align-items: center; justify-content: center; cursor: zoom-out; }
+        #artViewer img { max-width: 100vw; max-height: 100vh; object-fit: contain; }
         .personal-controls { margin-left: 10px; }
         .personal-controls button { padding: 2px 8px; font-size: 12px; }
         .personal-controls form { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 4px 0 0; }
@@ -393,6 +402,15 @@
             </span>
             <button id="downloadAdded" style="display: none; padding: 2px 8px; font-size: 12px; margin-left: 6px;" onclick="downloadAddedItems()">⬇ Download added items</button>
             <button id="clearAdded" class="btn-secondary" style="display: none; padding: 2px 8px; font-size: 12px; margin-left: 6px;" onclick="clearAddedItems()">Remove all added items</button>
+            <!-- Item art: a folder of images named after items, kept in this browser (never uploaded) -->
+            <span class="art-controls">
+                <label id="artLoadLabel" class="art-load" title="Choose a folder of images named after items (e.g. Aberrant Nail.png). They are kept in this browser, never uploaded.">
+                    🖼 Load art folder<input type="file" id="artFolderInput" accept="image/*" webkitdirectory multiple hidden>
+                </label>
+                <span id="artLoaded" style="display: none;">🖼 <span id="artCount"></span> images
+                    <button type="button" class="btn-secondary" onclick="forgetArt()">Forget</button></span>
+                <span id="artMessage" role="status"></span>
+            </span>
         </div>
         <input type="text" id="searchInput" placeholder="Search items by name or type...">
 
@@ -499,11 +517,17 @@
     </div>
 </div>
 
+<div id="artViewer" onclick="closeArtViewer()" title="Click or press Escape to close"><img id="artViewerImg" alt=""></div>
+
 <div class="modal-overlay" id="itemModal" onclick="closeModal(event)">
     <div class="modal-content" onclick="event.stopPropagation()">
         <button class="modal-close" onclick="closeModal(null, true)">✖</button>
         <h2 id="modalName" style="font-family: 'Cinzel', serif; margin-top: 0;"></h2>
         <div><span class="modal-tag" id="modalRarity"></span><span class="modal-tag" id="modalType"></span><span class="modal-tag" id="modalAttunement"></span></div>
+        <div id="modalArtBox">
+            <img id="modalArt" alt="" title="Show full screen" onclick="showArtFullScreen()">
+            <button type="button" onclick="showArtFullScreen()">⛶ Show to players</button>
+        </div>
         <hr style="border: 0; border-top: 1px solid #ccc; margin: 15px 0;">
         <div id="modalDesc" style="line-height: 1.5; font-size: 15px;"></div>
         <p style="font-size: 12px; color: #666; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
@@ -1587,9 +1611,123 @@
         document.getElementById('modalSource').innerHTML = sourceHtml;
 
         document.getElementById('itemModal').style.display = 'flex';
+        showItemArt(item);
     }
 
     function closeModal(e, force) { if (force || e.target.id === 'itemModal') document.getElementById('itemModal').style.display = 'none'; }
+
+    // --- 5b. Item art ---
+    // "Load art folder" reads a folder of images named after items ("Aberrant Nail.png"), shrinks each one and keeps it
+    // in this browser (IndexedDB), so the folder only has to be chosen once per browser. Nothing is uploaded.
+    const ART_DB = 'cardMakerArt', ART_STORE = 'art', ART_MAX_SIZE = 900;
+    let artKeys = new Set(), artMemory = null;   // artMemory: a fallback when the browser can't store them
+    let artUrl = null, artShownFor = null;   // the item whose details window is waiting for its art
+    const artKey = (name) => name.toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+    // The key of an item's art: its name, or its name without a "(Griffon's Saddlebag)"-style note
+    function itemArtKey(item) {
+        const keys = [artKey(item.Name), artKey(item.Name.replace(/\s*\([^)]*\)\s*$/, ''))];
+        return keys.find(key => artKeys.has(key)) || null;
+    }
+
+    function artDb() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(ART_DB, 1);
+            request.onupgradeneeded = () => request.result.createObjectStore(ART_STORE);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+    async function artRequest(mode, action) {
+        const db = await artDb();
+        return new Promise((resolve, reject) => {
+            const request = action(db.transaction(ART_STORE, mode).objectStore(ART_STORE));
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+    const getArt = (key) => artMemory ? Promise.resolve(artMemory.get(key)) : artRequest('readonly', store => store.get(key));
+
+    // A smaller copy for the browser to keep (the originals can be several MB each)
+    async function shrinkImage(file) {
+        const bitmap = await createImageBitmap(file);
+        const scale = Math.min(1, ART_MAX_SIZE / Math.max(bitmap.width, bitmap.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(bitmap.width * scale);
+        canvas.height = Math.round(bitmap.height * scale);
+        canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        bitmap.close();
+        return new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.85));
+    }
+
+    async function loadArtFolder(files) {
+        const images = files.filter(file => file.type.startsWith('image/'));
+        const message = document.getElementById('artMessage');
+        if (!images.length) { message.textContent = 'No images in that folder.'; return; }
+        let saved = 0, failed = 0;
+        for (const file of images) {
+            message.textContent = `Loading art ${saved + failed + 1} of ${images.length}...`;
+            const key = artKey(file.name.replace(/\.[^.]+$/, ''));
+            try {
+                const blob = await shrinkImage(file);
+                if (artMemory) artMemory.set(key, blob);
+                else {
+                    try { await artRequest('readwrite', store => store.put(blob, key)); }
+                    catch (err) { artMemory = new Map(); artMemory.set(key, blob); }   // can't store: keep them for this visit
+                }
+                artKeys.add(key);
+                saved++;
+            } catch (err) { failed++; }
+        }
+        const matched = allItems.filter(item => itemArtKey(item)).length;
+        message.textContent = `Loaded ${saved} images; ${matched} items have art.` + (failed ? ` ${failed} files couldn't be read.` : '')
+            + (artMemory ? ' This browser can\'t keep them, so load the folder again next visit.' : '');
+        updateArtControls();
+    }
+
+    async function forgetArt() {
+        if (!confirm('Forget the item art in this browser? Your art folder is not touched.')) return;
+        artKeys = new Set();
+        if (artMemory) artMemory = new Map();
+        else try { await artRequest('readwrite', store => store.clear()); } catch (err) { }
+        document.getElementById('artMessage').textContent = '';
+        updateArtControls();
+    }
+
+    function updateArtControls() {
+        document.getElementById('artLoaded').style.display = artKeys.size ? '' : 'none';
+        document.getElementById('artCount').textContent = artKeys.size.toLocaleString();
+        document.getElementById('artLoadLabel').style.display = artKeys.size ? 'none' : '';
+    }
+
+    // The art (if any) in the item details window
+    async function showItemArt(item) {
+        const box = document.getElementById('modalArtBox'), img = document.getElementById('modalArt');
+        box.style.display = 'none';
+        if (artUrl) { URL.revokeObjectURL(artUrl); artUrl = null; }
+        artShownFor = item;
+        const key = itemArtKey(item);
+        const blob = key ? await getArt(key).catch(() => null) : null;
+        if (!blob || artShownFor !== item) return;   // no art, or another item opened meanwhile
+        artUrl = URL.createObjectURL(blob);
+        img.src = artUrl;
+        img.alt = `Art for ${item.Name}`;
+        box.style.display = 'block';
+    }
+    function showArtFullScreen() {
+        document.getElementById('artViewerImg').src = document.getElementById('modalArt').src;
+        document.getElementById('artViewer').style.display = 'flex';
+    }
+    function closeArtViewer() { document.getElementById('artViewer').style.display = 'none'; }
+
+    document.getElementById('artFolderInput').addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files);
+        e.target.value = '';
+        if (files.length) await loadArtFolder(files);
+    });
+    // The art this browser already has
+    artRequest('readonly', store => store.getAllKeys())
+        .then(keys => { artKeys = new Set(keys); updateArtControls(); })
+        .catch(() => { artMemory = new Map(); });
 
     // --- 6. Queue Management ---
     // Each queue entry is one item: its cards (specs; a long item has several) and how many copies of them to print
@@ -1954,7 +2092,8 @@
     document.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape') return;
         const isOpen = (id) => document.getElementById(id).style.display === 'flex';
-        if (isOpen('itemModal')) closeModal(null, true);
+        if (isOpen('artViewer')) closeArtViewer();
+        else if (isOpen('itemModal')) closeModal(null, true);
         else if (isOpen('generatorModal')) closeGenerator();
         else if (isOpen('editorModal')) closeEditor();
         else openSheet(null);

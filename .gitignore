@@ -3,5 +3,6 @@ my_env/
 raw_pages/
 __pycache__/
 
-# The Griffon's Saddlebag items (the creator's paid content: personal use only, never commit)
+# The Griffon's Saddlebag items and art (the creator's paid content: personal use only, never commit)
 griffonsSaddlebag.csv
+GriffonsArt/
