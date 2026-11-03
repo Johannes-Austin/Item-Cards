@@ -92,9 +92,28 @@ def license_note(documents, entry):
     return f"Open5e: {documents.get(entry['document__slug'], {}).get('license', 'see source')}"
 
 
+def fix_markdown(text):
+    """Open5e's text is Markdown, but the card maker only knows *italic* and **bold**. Level Up's text italicises
+    game terms with underscores, sometimes unevenly ("__levitate_ "), and escapes some punctuation ("d8\\.").
+    '_prone_ , and' -> '*prone*, and'"""
+    text = re.sub(r'\\([^\w\s])', r'\1', text)
+    text = re.sub(r'(?<![\w_])_{1,2}([^_\n]+?)_{1,2}(?![\w_])', lambda m: f"*{m.group(1).strip()}*", text)
+    # A closing underscore a letter or two early: "_The Traveling Ches_t" -> "*The Traveling Chest*" and
+    # "“_tried to eat m_e”" -> "“*tried to eat me*”", but "_The Song of Creation i_s eternal" (the sentence carries on,
+    # so the next word started inside) -> "*The Song of Creation* is eternal"
+    def early_close(m):
+        inside, rest = m.group(1).strip(), m.group(2)
+        word = re.search(r'\s(\w{1,2})$', inside)
+        carries_on = re.match(r' \w', m.string[m.end():])
+        return f"*{inside[:word.start()]}* {word.group(1)}{rest}" if word and carries_on else f"*{inside}{rest}*"
+    text = re.sub(r'(?<![\w_])_([^_\n]+?)_(\w{1,3})\b', early_close, text)
+    text = re.sub(r'(?<=\*) +(?=[,.;:)])', '', text)
+    return re.sub(r'[ \t]{2,}', ' ', text).strip()
+
+
 def item_row(item, documents):
     return [item["name"].strip(), (item.get("rarity") or "").strip().lower(), attunement(item.get("requires_attunement")),
-            (item.get("type") or "").strip(), item.get("document__title", "").strip(), (item.get("desc") or "").strip(),
+            (item.get("type") or "").strip(), item.get("document__title", "").strip(), fix_markdown(item.get("desc") or ""),
             f"https://open5e.com/magic-items/{item['slug']}", license_note(documents, item)]
 
 
@@ -110,9 +129,9 @@ def spell_row(spell, documents):
     item_type = (f"{school} Cantrip" if level == 0 else f"{ordinal(level)}-level {school}") + (" (Ritual)" if ritual else "")
 
     # Paragraphs are one line each in spells.csv, with "At Higher Levels" as a bold line at the end
-    description = re.sub(r'\n\s*\n+', '\n', (spell.get("desc") or "").strip())
+    description = re.sub(r'\n\s*\n+', '\n', fix_markdown(spell.get("desc") or ""))
     if (spell.get("higher_level") or "").strip():
-        description += "\n**At Higher Levels.** " + re.sub(r'\n\s*\n+', '\n', spell["higher_level"].strip())
+        description += "\n**At Higher Levels.** " + re.sub(r'\n\s*\n+', '\n', fix_markdown(spell["higher_level"]))
 
     components = (spell.get("components") or "").strip()
     if (spell.get("material") or "").strip() and "M" in components:
