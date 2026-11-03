@@ -75,6 +75,7 @@
         /* Source filter: built from the items' Source column, so new books and homebrew sources appear automatically */
         .source-filter { margin-bottom: 15px; font-size: 14px; background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #eee; }
         .source-filter summary { cursor: pointer; font-weight: bold; }
+        .type-filter-list { margin: 10px 0 0; padding: 0; border: 0; background: none; }
         .source-filter .source-summary { font-weight: normal; color: #666; font-size: 13px; margin-left: 6px; }
         .source-actions { display: flex; gap: 6px; margin: 10px 0 8px; }
         .source-actions button { padding: 2px 10px; font-size: 12px; }
@@ -478,6 +479,12 @@
             <label><input type="checkbox" value="artifact" checked> Artifact</label>
             <label><input type="checkbox" value="other" checked> Other / Varies</label>
         </div>
+
+        <!-- Type Filters (Magic Items tab), folded away like the source filter; filled in by renderCheckboxFilters -->
+        <details class="source-filter" id="magicTypeDetails">
+            <summary>Filter by Type:<span class="source-summary" id="magicTypeSummary"></span></summary>
+            <div class="filter-group type-filter-list" id="magicTypeFilters"></div>
+        </details>
 
         <!-- Source Filters (filled in from the items, see renderSourceFilters) -->
         <details class="source-filter">
@@ -1035,6 +1042,7 @@
             b.setAttribute('aria-selected', b.dataset.tab === tab);
         });
         document.getElementById('rarityFilters').style.display = tab === 'magic' ? '' : 'none';
+        document.getElementById('magicTypeDetails').style.display = tab === 'magic' ? '' : 'none';
         document.getElementById('categoryFilters').style.display = tab === 'regular' ? '' : 'none';
         document.getElementById('spellFilters').style.display = tab === 'spells' ? '' : 'none';
         document.getElementById('secondColumnHeader').textContent = { magic: 'Rarity', regular: 'Cost', spells: 'Level' }[tab];
@@ -1055,24 +1063,37 @@
         const match = REGULAR_CATEGORIES.find(([, pattern]) => pattern.test(item.Type || ''));
         return match ? match[0] : OTHER_CATEGORY;
     }
-    const uncheckedCategories = new Set();
-    function renderCategoryFilters() {
-        const box = document.getElementById('categoryFilters');
+    // Magic items are grouped by the start of their Type: "Weapon (longsword)" -> Weapons, "Wondrous item" -> Wondrous Items
+    const MAGIC_TYPES = [
+        ['Wondrous Items', /^wondrous/i], ['Weapons', /^(weapon|ammunition|dagger)/i], ['Armor & Shields', /^(armor|shield)/i],
+        ['Rings', /^ring/i], ['Potions', /^potion/i], ['Scrolls', /^scroll/i], ['Staffs', /^staff/i], ['Wands', /^wand/i], ['Rods', /^rod/i]
+    ];
+    const OTHER_MAGIC_TYPE = 'Other';
+    function magicType(item) {
+        const match = MAGIC_TYPES.find(([, pattern]) => pattern.test((item.Type || '').trim()));
+        return match ? match[0] : OTHER_MAGIC_TYPE;
+    }
+
+    // A row of checkboxes, all ticked to start with; unchecked holds the names that are unticked
+    function renderCheckboxFilters(boxId, names, unchecked) {
+        const box = document.getElementById(boxId);
         box.querySelectorAll('label').forEach(l => l.remove());
-        [OTHER_CATEGORY, ...REGULAR_CATEGORIES.map(([name]) => name)].forEach(name => {
+        names.forEach(name => {
             const label = document.createElement('label');
             const cb = document.createElement('input');
             cb.type = 'checkbox';
-            cb.checked = !uncheckedCategories.has(name);
+            cb.checked = !unchecked.has(name);
             cb.addEventListener('change', () => {
-                if (cb.checked) uncheckedCategories.delete(name); else uncheckedCategories.add(name);
+                if (cb.checked) unchecked.delete(name); else unchecked.add(name);
                 applyFilters();
             });
             label.append(cb, ` ${name}`);
             box.appendChild(label);
         });
     }
-    renderCategoryFilters();
+    const uncheckedCategories = new Set(), uncheckedMagicTypes = new Set();
+    renderCheckboxFilters('categoryFilters', [OTHER_CATEGORY, ...REGULAR_CATEGORIES.map(([name]) => name)], uncheckedCategories);
+    renderCheckboxFilters('magicTypeFilters', [...MAGIC_TYPES.map(([name]) => name), OTHER_MAGIC_TYPE], uncheckedMagicTypes);
 
     // --- Spells ---
     const SPELL_COLUMNS = ['Level', 'School', 'CastingTime', 'Range', 'Components', 'Duration', 'Classes'];
@@ -1250,7 +1271,7 @@
                 const itemRarity = (item.Rarity || 'common').toLowerCase().trim();
                 // Anything that isn't one of the six standard rarities (unique, varies, etc.) goes under "Other"
                 const rarityBucket = STANDARD_RARITIES.includes(itemRarity) ? itemRarity : 'other';
-                matchesGroup = checkedRarities.includes(rarityBucket);
+                matchesGroup = checkedRarities.includes(rarityBucket) && !uncheckedMagicTypes.has(magicType(item));
             }
 
             // An item with several sources is shown if any of them is ticked
@@ -1261,6 +1282,8 @@
 
         renderCatalog(filtered);
         updateSourceSummary();
+        const typeCount = MAGIC_TYPES.length + 1, typesTicked = typeCount - uncheckedMagicTypes.size;
+        document.getElementById('magicTypeSummary').textContent = typesTicked === typeCount ? `all ${typeCount} types` : `${typesTicked} of ${typeCount} types`;
         if (currentTab === 'spells') updateSpellFilterSummary();
 
         const empty = document.getElementById('catalogEmpty');
