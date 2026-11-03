@@ -108,6 +108,16 @@ def fix_markdown(text):
         return f"*{inside[:word.start()]}* {word.group(1)}{rest}" if word and carries_on else f"*{inside}{rest}*"
     text = re.sub(r'(?<![\w_])_([^_\n]+?)_(\w{1,3})\b', early_close, text)
     text = re.sub(r'(?<=\*) +(?=[,.;:)])', '', text)
+    # Links to other Open5e pages ("[true seeing](https://api.open5e.com/spells/true-seeing)") -> "*true seeing*"
+    text = re.sub(r'\[([^\]\n]+)\]\([^)\n]*\)', r'*\1*', text)
+    # "* " list items -> "• " (the cards would read the "*" as the start of italics), also "*You can..." with no space
+    text = re.sub(r'^([ \t]*)\* ', r'\1• ', text, flags=re.M)
+    text = re.sub(r'^([ \t]*)\*(?=[A-Z])(?![^\n]*\*)', r'\1• ', text, flags=re.M)
+    # Kobold Press marks Deep Magic spells with "*" ("living shadows* (5 charges)"), which the cards would read as
+    # italics between two marks: those items have no real italics, so the marks become daggers
+    if re.search(r'marked with an asterisk \(\*\)', text):
+        text = text.replace('an asterisk (*)', 'a dagger (†)').replace('*', '†')
+    text = re.sub(r'\n[ \t]*\n(?:[ \t]*\n)+', '\n\n', text)   # at most one blank line in a row
     return re.sub(r'[ \t]{2,}', ' ', text).strip()
 
 

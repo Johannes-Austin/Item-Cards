@@ -1385,10 +1385,12 @@
     }
 
     function buildTableHtml(tableLines) {
+        const isRule = (row) => row.every(c => /^:?-{2,}:?$/.test(c));
         const rows = tableLines.map(splitRow);
+        if (rows.length > 1 && isRule(rows[0])) rows.shift();   // a table with no header row starts with its | --- | line
         let header = null, body = rows;
         // Second row like | --- | --- | marks the first row as the header
-        if (rows.length >= 2 && rows[1].every(c => /^:?-{2,}:?$/.test(c))) {
+        if (rows.length >= 2 && isRule(rows[1])) {
             header = rows[0];
             body = rows.slice(2);
         }
@@ -1409,7 +1411,12 @@
 
             if (/^\s*\|/.test(line)) {                      // table block
                 const tableLines = [];
-                while (i < lines.length && /^\s*\|/.test(lines[i])) tableLines.push(lines[i++]);
+                const isRuleLine = (l) => /^\s*\|(\s*:?-{2,}:?\s*\|)+\s*$/.test(l || '');
+                while (i < lines.length && /^\s*\|/.test(lines[i])) {
+                    // A header row followed by its | --- | line starts another table right after this one
+                    if (tableLines.length >= 2 && isRuleLine(lines[i + 1])) break;
+                    tableLines.push(lines[i++]);
+                }
                 i--;
                 blocks.push({ kind: 'block', html: buildTableHtml(tableLines) });
                 continue;
