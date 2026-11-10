@@ -505,12 +505,109 @@ def parse_tools():
 
 
 # ==========================================
+#  MOUNTS AND VEHICLES
+# ==========================================
+SPELLJAMMER = "Spelljammer: Adventures in Space - Astral Adventurer's Guide"
+DRAWN_VEHICLES = {"Carriage", "Cart", "Chariot", "Sled", "Wagon"}
+NOT_ITEMS = {"Stabling (per day)"}   # a service, not something to carry around
+
+
+def rule_paragraph(content, start):
+    """The text of the page's paragraph starting with e.g. 'Barding.' or 'An animal pulling', or ''"""
+    for p in content.find_all("p"):
+        text = tags_to_markdown(p)
+        if text.replace("*", "").startswith(start):
+            return text
+    return ""
+
+
+def parse_mounts_vehicles():
+    url = SITE + "mounts-vehicles"
+    content = page_content("mounts-vehicles")
+    tables = content.find_all("table")
+    drawn_rule = rule_paragraph(content, "An animal pulling")
+
+    # Mounts and other animals: Speed and Carrying Capacity
+    rows = tables[0].find_all("tr")
+    head = rows[0].find_all(["th", "td"])
+    cost_i, speed_i, carry_i = column_index(head, "Cost"), column_index(head, "Speed"), column_index(head, "Carrying")
+    for row in rows[1:]:
+        cells = row.find_all("td")
+        if cells:
+            add_item(cell_text(cells[0]), cell_text(cells[cost_i]), "Mount", PHB,
+                     stat_lines(("Speed", cell_text(cells[speed_i])), ("Carrying Capacity", cell_text(cells[carry_i]))), url)
+
+    # Tack, harness and drawn vehicles. "Saddle" is a group row for the four kinds of saddle below it
+    rules = {"Barding": rule_paragraph(content, "Barding."), "Saddle": rule_paragraph(content, "Saddles.")}
+    rows = tables[1].find_all("tr")
+    head = rows[0].find_all(["th", "td"])
+    cost_i, weight_i = column_index(head, "Cost"), column_index(head, "Weight")
+    group = ""
+    for row in rows[1:]:
+        cells = row.find_all("td")
+        if not cells:
+            continue
+        name, cost, weight = cell_text(cells[0]), cell_text(cells[cost_i]), cell_text(cells[weight_i])
+        if not cost and not weight:
+            group = name
+            continue
+        if name in NOT_ITEMS:
+            continue
+        if group == "Saddle" and name in ("Exotic", "Military", "Pack", "Riding"):
+            name, extra = f"Saddle, {name}", rules["Saddle"]
+        else:
+            group, extra = "", rules.get(name, "")
+        if name == "Barding":
+            # Costs and weighs a multiple of the armor it's made from
+            cost, lines = "×4 armor cost", ["**Weight:** ×2 armor weight"]
+        else:
+            lines = stat_lines(("Weight", weight))
+        item_type = "Drawn Vehicle" if name in DRAWN_VEHICLES else "Tack and Harness"
+        add_item(name, cost, item_type, PHB, lines + [extra or (drawn_rule if item_type == "Drawn Vehicle" else "")], url)
+
+    # Waterborne vehicles: Speed; keelboats and rowboats are rowed
+    rowed_rule = rule_paragraph(content, "Rowed Vessels.")
+    rows = tables[2].find_all("tr")
+    head = rows[0].find_all(["th", "td"])
+    cost_i, speed_i = column_index(head, "Cost"), column_index(head, "Speed")
+    for row in rows[1:]:
+        cells = row.find_all("td")
+        if cells:
+            name = cell_text(cells[0])
+            add_item(name, cell_text(cells[cost_i]), "Waterborne Vehicle", PHB,
+                     stat_lines(("Speed", cell_text(cells[speed_i])))
+                     + [rowed_rule if name in ("Keelboat", "Rowboat") else ""], url)
+
+    # Spelljamming ships: a stat table, and each ship's description in a tab named after it
+    descriptions = {}
+    tabs = content.find("div", class_="yui-navset")
+    if tabs:
+        names = [cell_text(li) for li in tabs.select("ul.yui-nav li")]
+        panels = tabs.select_one("div.yui-content").find_all("div", recursive=False)
+        for name, panel in zip(names, panels):
+            descriptions[name.lower()] = [tags_to_markdown(p) for p in panel.find_all("p") if tags_to_markdown(p)]
+    if len(tables) > 3:
+        rows = tables[3].find_all("tr")
+        head = rows[0].find_all(["th", "td"])
+        labels = [cell_text(c) for c in head]
+        cost_i = column_index(head, "Cost")
+        for row in rows[1:]:
+            cells = row.find_all("td")
+            if not cells:
+                continue
+            name = cell_text(cells[0])
+            stats = [(labels[i], cell_text(cells[i])) for i in range(1, len(cells)) if i != cost_i and i < len(labels)]
+            add_item(name, cell_text(cells[cost_i]), "Spelljamming Ship", SPELLJAMMER,
+                     stat_lines(*stats) + descriptions.get(name.lower(), []), url)
+
+
+# ==========================================
 #  MAIN
 # ==========================================
 if __name__ == "__main__":
     print("Scraping regular items...")
     for parse in (parse_adventuring_gear, parse_armor, parse_weapons, parse_firearms,
-                  parse_explosives, parse_poisons, parse_tools):
+                  parse_explosives, parse_poisons, parse_tools, parse_mounts_vehicles):
         before = len(items)
         try:
             parse()

@@ -1055,6 +1055,7 @@
 
     // Regular items are grouped by their Type: "Martial Melee Weapon" -> Weapons, "Light Armor" -> Armor, ...
     const REGULAR_CATEGORIES = [
+        ['Mounts & Vehicles', /^(mount|drawn vehicle|waterborne vehicle|spelljamming ship|tack and harness)$/i],
         ['Weapons', /weapon/i], ['Armor', /armor|shield/i], ['Ammunition', /ammunition/i],
         ['Tools', /tool|supplies|utensils|kit|gaming set|instrument/i], ['Poisons', /poison/i], ['Explosives', /explosive/i]
     ];
@@ -2177,7 +2178,8 @@
 
     const CLOTHING = /\b(cloak|robes?|cape|mantle|hat|cap|gloves|boots|slippers|belt|girdle|vestments|shirt|clothes|clothing|garb|sash|scarf|hood|cowl|wraps?|tunic|coat|jacket|veil|mask|bandolier|stockings|shawl|gown|dress|tabard|vest)\b/i;
 
-    // Shops: which regular items and which magic items each one stocks. magicOnly shops ignore the wealth's magic share.
+    // Shops: which regular items and which magic items each one stocks. magicOnly shops ignore the wealth's magic share;
+    // magicBoost and prefer (see shopPicker) lean a shop toward its speciality.
     // favor: names that suit the shop even when the Type doesn't (Gauntlets of Ogre Power are a "Wondrous Item").
     // Those items are added to the stock and are twice as likely to come up, so the stock leans toward them
     // without the shop running short.
@@ -2193,7 +2195,9 @@
                               magic: /\b(archery|archer|hunter|hunting|eagle|hawk|falcon|feather|ranger|marksman|seeking|sharpshooter)\b/i } },
         alchemist: { regular: item => ['Poisons', 'Explosives'].includes(itemCategory(item)) || /\b(acid|alchemist's|antitoxin|healer's|oil|holy water|perfume|vial|flask|herbalism|poisoner's|bottle)\b/i.test(item.Name), magic: typeOrName(/potion|elixir|philter|\boil of|dust of|salve|ointment|incense/i),
                      favor: { regular: /\b(candle|soap|component pouch|jug|pot|glassblower's|brewer's|cook's)\b/i,
-                              magic: /\b(flask|bottle|decanter|alembic|jug|beads?|candle|pipe|censer|keoghtom's|alchemy|cauldron|pot|mortar|herbs?|smoke|vapors?|perfume|elemental gem)\b/i } },
+                              magic: /\b(flask|bottle|decanter|alembic|jug|beads?|candle|pipe|censer|keoghtom's|alchemy|cauldron|pot|mortar|herbs?|smoke|vapors?|perfume|elemental gem)\b/i },
+                     // An apothecary is mostly potions: more of its stock is magic, and potions are its likeliest magic item
+                     magicBoost: 0.35, prefer: /^potion/i },
         // (not Ring Mail or a ruby-studded sword)
         jeweler:   { regular: item => /\b(amulet|ring|emblem|reliquary|jeweler's|crystal)\b/i.test(item.Name) && itemCategory(item) !== 'Armor',
                      magic: item => typeOrName(JEWELRY)(item) && !/armor|weapon|shield/i.test(item.Type || ''),
@@ -2232,8 +2236,11 @@
             && (shop.magic(item) || (favorMagic(item) && !/^(potion|scroll)/i.test(item.Type || ''))));
         // Regular items without a price (modern firearms, ...) aren't sold
         const regularPool = allItems.filter(item => isMundane(item) && (shop.regular(item) || favorRegular(item)) && costInGp(item) <= wealth.maxCost);
-        const magicWeight = (item) => favorMagic(item) ? 2 : 1, regularWeight = (item) => favorRegular(item) ? 2 : 1;
-        const magicShare = shop.magicOnly ? 1 : wealth.magic;
+        // prefer: the shop's speciality (by Type), four times as likely as an ordinary magic item
+        const magicWeight = (item) => shop.prefer && shop.prefer.test(item.Type || '') ? 4 : favorMagic(item) ? 2 : 1;
+        const regularWeight = (item) => favorRegular(item) ? 2 : 1;
+        // magicBoost: a shop that is mostly magic stock gets this much more of it than the wealth alone gives (up to 90%)
+        const magicShare = shop.magicOnly ? 1 : Math.min(0.9, wealth.magic + (shop.magicBoost || 0));
         return (used) => {
             const magicFirst = Math.random() < magicShare;
             const pickMagicItem = () => pickMagic(magicPool, wealth.rarities, used, magicWeight);
@@ -2260,7 +2267,8 @@
         const kind = LOOT_KINDS[document.getElementById('genLootKind').value];
         const mixed = document.getElementById('genLootMix').value === 'mixed';
         const magicPool = allItems.filter(item => itemTab(item) === 'magic' && kind(item));
-        const regularPool = mixed ? allItems.filter(item => isMundane(item) && kind(item)) : [];
+        // (no horses or ships in a loot pile)
+        const regularPool = mixed ? allItems.filter(item => isMundane(item) && kind(item) && itemCategory(item) !== 'Mounts & Vehicles') : [];
         return (used) => {
             const magicFirst = !mixed || Math.random() < 0.7;
             return magicFirst ? (pickMagic(magicPool, tier, used) || pickAny(regularPool, used))
