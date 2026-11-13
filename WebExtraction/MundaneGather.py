@@ -602,12 +602,192 @@ def parse_mounts_vehicles():
 
 
 # ==========================================
+#  GEMSTONES AND ART OBJECTS (written here, not scraped: the wiki has no page for them)
+# ==========================================
+# Gemstones at the Dungeon Master's Guide's values, with a short description of each stone's look
+GEMSTONES = {
+    "10 gp": [("Azurite", "Opaque, mottled deep blue."), ("Banded Agate", "Translucent, striped brown, blue, white or red."),
+              ("Blue Quartz", "Transparent pale blue."), ("Eye Agate", "Translucent rings of gray, white, brown, blue or green."),
+              ("Hematite", "Opaque gray-black."), ("Lapis Lazuli", "Opaque light or dark blue flecked with yellow."),
+              ("Malachite", "Opaque, banded light and dark green."), ("Moss Agate", "Translucent pink or yellow-white with mossy gray or green markings."),
+              ("Obsidian", "Opaque black."), ("Rhodochrosite", "Opaque light pink."),
+              ("Tiger Eye", "Translucent brown with a golden center."), ("Turquoise", "Opaque light blue-green.")],
+    "50 gp": [("Bloodstone", "Opaque dark gray with red flecks."), ("Carnelian", "Opaque orange to red-brown."),
+              ("Chalcedony", "Opaque white."), ("Chrysoprase", "Translucent green."), ("Citrine", "Transparent pale yellow-brown."),
+              ("Jasper", "Opaque blue, black or brown."), ("Moonstone", "Translucent white with a pale blue glow."),
+              ("Onyx", "Opaque bands of black and white, or pure black or white."), ("Quartz", "Transparent white, smoky gray or yellow."),
+              ("Sardonyx", "Opaque bands of red and white."), ("Star Rose Quartz", "Translucent rosy stone with a white star at its center."),
+              ("Zircon", "Transparent pale blue-green.")],
+    "100 gp": [("Amber", "Transparent watery gold to rich gold."), ("Amethyst", "Transparent deep purple."),
+               ("Chrysoberyl", "Transparent yellow-green to pale green."), ("Coral", "Opaque crimson."),
+               ("Garnet", "Transparent red, brown-green or violet."), ("Jade", "Translucent light green, deep green or white."),
+               ("Jet", "Opaque deep black."), ("Pearl", "Opaque lustrous white, yellow or pink."),
+               ("Spinel", "Transparent red, red-brown or deep green."), ("Tourmaline", "Transparent pale green, blue, brown or red.")],
+    "500 gp": [("Alexandrite", "Transparent dark green."), ("Aquamarine", "Transparent pale blue-green."),
+               ("Black Pearl", "Opaque pure black."), ("Blue Spinel", "Transparent deep blue."),
+               ("Peridot", "Transparent rich olive green."), ("Topaz", "Transparent golden yellow.")],
+    "1,000 gp": [("Black Opal", "Translucent dark green with black mottling and golden flecks."),
+                 ("Blue Sapphire", "Transparent blue-white to medium blue."), ("Emerald", "Transparent deep bright green."),
+                 ("Fire Opal", "Translucent fiery red."), ("Opal", "Translucent pale blue with green and golden mottling."),
+                 ("Star Ruby", "Translucent ruby with a white star at its center."),
+                 ("Star Sapphire", "Translucent blue sapphire with a white star at its center."),
+                 ("Yellow Sapphire", "Transparent fiery yellow or yellow-green.")],
+    "5,000 gp": [("Black Sapphire", "Translucent lustrous black with glowing highlights."),
+                 ("Diamond", "Transparent blue-white, canary, pink, brown or blue."),
+                 ("Jacinth", "Transparent fiery orange."), ("Ruby", "Transparent clear red to deep crimson.")],
+}
+# Art objects at the Dungeon Master's Guide's value tiers. These pieces are this project's own, not the DMG's list.
+ART_OBJECTS = {
+    "25 gp": ["Pewter tankard etched with a hunting scene", "Carved wooden bear with glass eyes", "Silver thimble engraved with roses",
+              "Painted clay mask of a laughing jester", "Copper hand mirror with a polished face", "Embroidered linen picture of a village",
+              "Brass compass in a tooled leather case", "Bone comb carved with leaping fish", "Painted wooden chess set, two pieces missing",
+              "Silk ribbon strung with tiny silver bells"],
+    "250 gp": ["Gold signet ring of a forgotten noble house", "Three-armed silver candelabrum", "Ivory hairpin carved as a heron",
+               "Small tapestry of a knight at a river crossing", "Bronze astrolabe engraved with star charts",
+               "Enamelled snuffbox painted with a mountain lake", "Silver drinking horn with a gilded rim", "Jade figurine of a sleeping cat",
+               "Illuminated prayer book with gilt pages", "Pair of silver spurs set with small garnets"],
+    "750 gp": ["Gold-plated hand bell with an ebony handle", "Silver chalice set with moonstones",
+               "Oil painting of a stormy harbor in a gilt frame", "Marble bust of a stern magistrate",
+               "Gold dragonfly brooch with amber wings", "Silk ceremonial robe embroidered with gold thread",
+               "Silver music box that plays a lullaby", "Ceremonial obsidian dagger with a gold-wire grip",
+               "Crystal decanter with a silver stopper", "Ivory and gold game board with its pieces"],
+    "2,500 gp": ["Gold crown set with small emeralds", "Red leather scabbard with jewelled gold fittings",
+                 "Platinum bracelet set with sapphires", "Gold-threaded tapestry of a royal wedding",
+                 "Gold statuette of a rearing horse with ruby eyes", "Silver tiara strung with pearls",
+                 "Ancient bronze war helm inlaid with gold", "Jade dragon carving on a teak stand",
+                 "Gold-leaf portrait of a long-dead queen", "Lace mantilla woven with mithral thread"],
+    "7,500 gp": ["Platinum scepter crowned with a great diamond", "Jewelled crown of a fallen empire",
+                 "Gold idol with fire opal eyes", "Gold and platinum orrery with gemstone planets",
+                 "Platinum necklace studded with diamonds", "Set of gold goblets crusted with rubies",
+                 "Masterpiece painting of an empire's founding", "Gold music box inlaid with black sapphires",
+                 "Ceremonial gold armor of a dragon-king", "Black pearl diadem on a platinum band"],
+}
+
+
+def parse_treasure():
+    for value, gems in GEMSTONES.items():
+        for name, look in gems:
+            add_item(name, value, f"Gemstone ({value})", DMG, [f"**Value:** {value}", look], "")
+    for value, pieces in ART_OBJECTS.items():
+        for name in pieces:
+            # (added directly: these read as descriptions, so they keep their sentence case)
+            items.append([name, RARITY, value, f"Art Object ({value})", "Card Maker Treasure", f"**Value:** {value}", "", ""])
+
+
+# ==========================================
+#  SPELL COMPONENTS (written here from the costly material components in spells.csv)
+# ==========================================
+# (component, value in gp, [(spell, whether the spell consumes it)]). Components that are already regular items
+# (a holy symbol, a book) and open-ended ones (Incite Greed's "a gem", Imprisonment's special component) are left out.
+SPELL_COMPONENTS = [
+    ("Mansion charms: ivory portal, polished marble and silver spoon", 15, [("Mordenkainen's Magnificent Mansion", False)]),
+    ("Replica of yourself", 5, [("Project Image", False)]),
+    ("Lead-based ink", 10, [("Illusory Script", True)]),
+    ("Jade dust", 10, [("Magic Mouth", True)]),
+    ("Jade dust", 25, [("Programmed Illusion", False)]),
+    ("Small silver rod", 10, [("Guards and Wards", False)]),
+    ("Charcoal, incense and herbs", 10, [("Find Familiar", True)]),
+    ("Gold dust", 25, [("Arcane Lock", True), ("Immovable Object", True)]),
+    ("Powdered silver", 25, [("Ceremony", True)]),
+    ("Divination tokens (marked sticks or bones)", 25, [("Augury", False)]),
+    ("Diamond dust", 25, [("Nondetection", True)]),
+    ("Incense and sacrificial offering", 25, [("Divination", True)]),
+    ("Eye ointment of mushroom, saffron and fat", 25, [("True Seeing", True)]),
+    ("Diamond", 50, [("Chromatic Orb", False)]),
+    ("Ruby dust", 50, [("Continual Flame", True)]),
+    ("Pair of platinum rings", 100, [("Warding Bond", False)]),
+    ("Tiny replica chest", 50, [("Leomund's Secret Chest", False)]),
+    ("Gem-infused chalks and inks", 50, [("Teleportation Circle", True)]),
+    ("Four ivory strips", 200, [("Legend Lore", False)]),
+    ("Pearl", 100, [("Identify", False)]),
+    ("White pearl", 100, [("Fortune's Favor", True)]),
+    ("Jeweled horn or glass eye", 100, [("Clairvoyance", False)]),
+    ("Powdered silver and iron", 100, [("Magic Circle", True)]),
+    ("Diamond dust", 100, [("Stoneskin", True), ("Greater Restoration", True)]),
+    ("Sunburst pendant", 100, [("Dawn", False)]),
+    ("Divinatory tools", 100, [("Find the Path", False)]),
+    ("Tiny silver cage", 100, [("Soul Cage", False)]),
+    ("Ornately carved bar of silver", 100, [("Astral Projection", True)]),
+    ("Black onyx stone", 150, [("Create Undead", False)]),
+    ("Undead eyeball encased in a gem", 150, [("Shadow Of Moil", False)]),
+    ("Gilded acorn", 200, [("Summon Beast", False)]),
+    ("Incense and powdered diamond", 200, [("Glyph of Warding", True)]),
+    ("Incense", 250, [("Legend Lore", True)]),
+    ("Miniature platinum sword", 250, [("Mordenkainen's Sword", False)]),
+    ("Forked metal rod", 250, [("Plane Shift", False)]),
+    ("Spool of platinum cord", 250, [("Tether Essence", True)]),
+    ("Diamond", 300, [("Revivify", True)]),
+    ("Gilded flower", 300, [("Summon Fey", False)]),
+    ("Crystal vial of tears", 300, [("Summon Shadowspawn", False)]),
+    ("Gilded skull", 300, [("Summon Undead", False)]),
+    ("Gilded playing card", 400, [("Spirit Of Death", False)]),
+    ("Platinum-inlaid vial", 400, [("Summon Aberration", False)]),
+    ("Ornate stone and metal lockbox", 400, [("Summon Construct", False)]),
+    ("Gold-inlaid vial", 400, [("Summon Elemental", False)]),
+    ("Diamond", 500, [("Raise Dead", True), ("Mighty Fortress", True)]),
+    ("Golden reliquary", 500, [("Summon Celestial", False)]),
+    ("Dragon-engraved object", 500, [("Summon Draconic Spirit", False)]),
+    ("Crushed black pearl", 500, [("Circle of Death", False)]),
+    ("Platinum-plated dragon scale", 500, [("Fizban's Platinum Shield", False)]),
+    ("Ornamental gem container", 500, [("Magic Jar", False)]),
+    ("Outer Planes symbol", 500, [("Tasha's Otherworldly Guise", False)]),
+    ("Vial of quicksilver", 500, [("Create Magen", True)]),
+    ("Dragon statuette", 500, [("Draconic Transformation", False)]),
+    ("Adamantine piece", 500, [("Invulnerability", True)]),
+    ("Ruby vial", 600, [("Summon Fiend", False)]),
+    ("Ruby", 999, [("Infernal Calling", False)]),
+    ("Agate", 1000, [("Awaken", True)]),
+    ("Herbs, oils and incense", 1000, [("Hallow", True)]),
+    ("Jewel", 1000, [("Planar Binding", True)]),
+    ("Rare oils and unguents", 1000, [("Reincarnate", True)]),
+    ("Scrying focus", 1000, [("Scrying", False)]),
+    ("Jewel-encrusted dagger", 1000, [("Create Homunculus", False)]),
+    ("Sapphire", 1000, [("Drawmij's Instant Summons", False)]),
+    ("Powdered ruby", 1000, [("Forbiddance", False)]),
+    ("Gem-encrusted bowl", 1000, [("Heroes' Feast", True)]),
+    ("Diamond", 1000, [("Resurrection", True), ("Clone", True)]),
+    ("Powdered diamond and opal", 1000, [("Symbol", True)]),
+    ("Jacinth", 1000, [("Astral Projection", True)]),
+    ("Tiny reliquary", 1000, [("Holy Aura", False)]),
+    ("Ivory statuette of yourself", 1500, [("Contingency", False)]),
+    ("Intricate crystal rod", 1500, [("Create Magen", False)]),
+    ("Ruby dust", 1500, [("Forcecage", False)]),
+    ("Powdered ruby", 1500, [("Simulacrum", True)]),
+    ("Jade circlet", 1500, [("Shapechange", False)]),
+    ("Sealable clone vessel", 2000, [("Clone", False)]),
+    ("Exquisite chest of rare materials", 5000, [("Leomund's Secret Chest", False)]),
+    ("Crystal rod", 5000, [("Create Spelljamming Helm", True)]),
+    ("Diamond, emerald, ruby and sapphire dust", 5000, [("Sequester", True)]),
+    ("Diamond", 5000, [("Gate", False)]),
+    ("Hourglass of diamond dust", 5000, [("Time Ravage", True)]),
+    ("Holy water and diamonds", 25000, [("True Resurrection", True)]),
+]
+
+
+def parse_spell_components():
+    spells_csv = os.path.join(BASE_DIR, "spells.csv")
+    with open(spells_csv, encoding="utf-8-sig") as f:
+        spell_sources = {r["Name"]: r["Source"] for r in csv.DictReader(f)}
+    for name, value, uses in SPELL_COMPONENTS:
+        cost = f"{value:,} gp"
+        used_by = ", ".join(f"{spell}{' (consumed)' if consumed else ''}" for spell, consumed in uses)
+        sources = []
+        for spell, _ in uses:
+            for source in (spell_sources.get(spell) or PHB).split(", "):
+                if source not in sources:
+                    sources.append(source)
+        items.append([f"{name[0].upper()}{name[1:]} ({cost})", RARITY, cost, "Spell Component", ", ".join(sources),
+                      f"**Value:** {cost}\n**Used by:** {used_by}", "", ""])
+
+
+# ==========================================
 #  MAIN
 # ==========================================
 if __name__ == "__main__":
     print("Scraping regular items...")
     for parse in (parse_adventuring_gear, parse_armor, parse_weapons, parse_firearms,
-                  parse_explosives, parse_poisons, parse_tools, parse_mounts_vehicles):
+                  parse_explosives, parse_poisons, parse_tools, parse_mounts_vehicles,
+                  parse_treasure, parse_spell_components):
         before = len(items)
         try:
             parse()

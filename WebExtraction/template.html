@@ -89,6 +89,7 @@
         .btn-add { background: #198754; }
         .btn-add:hover { background: #157347; }
         .btn-remove { background: #dc3545; padding: 5px 10px; font-size: 12px; }
+        .btn-reroll { background: #6f42c1; padding: 5px 9px; font-size: 13px; line-height: 1; }
         .btn-remove:hover { background: #bb2d3b; }
         .btn-secondary { background: #6c757d; }
         .btn-secondary:hover { background: #5c636a; }
@@ -104,6 +105,11 @@
         .csv-box input[type="file"] { padding: 4px; margin: 3px 0 0; font-size: 12px; }
         .secondary-toggle { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; white-space: nowrap; cursor: pointer; }
         .secondary-toggle input { margin: 0; }
+        .recent-items { display: flex; align-items: center; gap: 6px; overflow-x: auto; white-space: nowrap; font-size: 13px; margin: -6px 0 12px; padding-bottom: 2px; }
+        .recent-items .recent-label { color: #666; flex: none; }
+        .recent-items button { flex: none; padding: 2px 9px; font-size: 13px; border: 1px solid #ccc; border-radius: 12px; background: #fff; color: #222; cursor: pointer; }
+        .recent-items button:hover { background: #eef3fb; border-color: #9bb5dd; }
+        .recent-items .recent-clear { border: 0; background: none; color: #888; padding: 2px 4px; }
         .art-controls { margin-left: 10px; white-space: nowrap; }
         .art-controls button { padding: 2px 8px; font-size: 12px; }
         .art-load { cursor: pointer; color: #1d4f9c; text-decoration: underline; }
@@ -195,6 +201,8 @@
         .gen-item:hover { background: #f1f3f5; }
         .gen-item.selected { background: #cfe2ff; }
         .gen-item-meta { font-size: 12px; color: #666; }
+        .gen-count { font-weight: normal; color: #6f42c1; }
+        .scroll-toggle { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: 14px; cursor: pointer; }
         .gen-item.swapped { animation: gen-flash 1.2s ease-out; }
         @keyframes gen-flash { from { background: #d1e7dd; } to { background: transparent; } }
         .gen-note { font-size: 12px; color: #a15c00; }
@@ -254,6 +262,10 @@
         .box-desc table { width: 100%; border-collapse: collapse; font-size: inherit; margin: 2px 0; }
         .box-desc th, .box-desc td { border: 1px solid rgba(0,0,0,0.45); padding: 0 2px; text-align: left; line-height: 1.05; vertical-align: top; }
         .box-desc th { font-weight: bold; background: rgba(0,0,0,0.08); }
+        /* Charge boxes: sized in em so they shrink with the card's text */
+        .charge-boxes { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25em; margin-top: 0.4em; }
+        .charge-label { font-weight: bold; margin-right: 0.2em; }
+        .charge-box { display: inline-block; width: 0.95em; height: 0.95em; border: 1px solid #222; border-radius: 2px; background: rgba(255,255,255,0.6); }
         .box-desc hr { border: 0; border-top: 1px solid rgba(0,0,0,0.4); margin: 2px 0; }
 
         /* Rendered markdown inside the details window */
@@ -340,7 +352,7 @@
             .gen-preview .preview-wrap { width: auto; max-height: none; align-items: center; overflow: visible; }
             .gen-form input[type="number"], .gen-form select { font-size: 16px; }
             .gen-list { max-height: none; flex: 1; }
-            .gen-item .btn-remove { padding: 8px 12px; }
+            .gen-item .btn-remove, .gen-item .btn-reroll { padding: 8px 12px; }
             .editor-tabs { display: flex; gap: 6px; margin: 0 48px 14px 0; }
             .editor-tabs button { flex: 1; background: #e9ecef; color: #333; }
             .editor-tabs button.active { background: #0d6efd; color: white; }
@@ -369,11 +381,17 @@
         <div id="previewWrap" class="preview-wrap" style="display: none;"></div>
         <div id="previewActions" style="display: none;">
             <div class="preview-hint" id="previewHint">Click the card for full details</div>
-            <button class="btn-add" id="previewAddBtn" style="width: 100%;" onclick="addToQueue(selectedId)">+ Add to Queue</button>
+            <label id="previewScrollToggle" class="scroll-toggle" style="display: none;" title="Show this spell as a Spell Scroll card: its rarity, save DC, attack bonus and price come from the spell's level">
+                <input type="checkbox" id="viewAsScroll"> 📜 View as spell scroll
+            </label>
+            <button class="btn-add" id="previewAddBtn" style="width: 100%;" onclick="addPreviewToQueue()">+ Add to Queue</button>
             <button class="btn-secondary" style="width: 100%; margin-top: 8px;" onclick="openEditor(selectedId)">✏️ Customize Card</button>
         </div>
         <label style="display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 14px; cursor: pointer;">
             <input type="checkbox" id="breakCards" checked> Break into multiple cards
+        </label>
+        <label style="display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 14px; cursor: pointer;" title="Empty boxes on items with charges (wands, staffs...), to tick off with a pencil">
+            <input type="checkbox" id="showCharges" checked> Show charge boxes
         </label>
     </div>
 
@@ -414,6 +432,8 @@
             </span>
         </div>
         <input type="text" id="searchInput" placeholder="Search items by name or type...">
+        <!-- The last items looked at (filled in by renderRecent) -->
+        <div class="recent-items" id="recentItems" style="display: none;"></div>
 
         <!-- Which list is shown. The preview and print queue are shared, so one print can mix all of them. -->
         <div class="catalog-tabs" role="tablist">
@@ -526,7 +546,7 @@
 
 <div id="artViewer" onclick="closeArtViewer()" title="Click or press Escape to close"><img id="artViewerImg" alt=""></div>
 
-<div class="modal-overlay" id="itemModal" onclick="closeModal(event)">
+<div class="modal-overlay" id="itemModal" onclick="if (clickedOutside(event, this)) closeModal(null, true)">
     <div class="modal-content" onclick="event.stopPropagation()">
         <button class="modal-close" onclick="closeModal(null, true)">✖</button>
         <h2 id="modalName" style="font-family: 'Cinzel', serif; margin-top: 0;"></h2>
@@ -549,7 +569,7 @@
 </div>
 
 <!-- Item editor: Create Item (blank) or Customize Card (filled in from the selected item) -->
-<div class="modal-overlay" id="editorModal" onclick="if (event.target === this) closeEditor()">
+<div class="modal-overlay" id="editorModal" onclick="if (clickedOutside(event, this)) closeEditor()">
     <div class="modal-content editor-content">
         <button class="modal-close" onclick="closeEditor()">✖</button>
         <!-- Phones only: the form and the preview don't fit side by side -->
@@ -634,7 +654,7 @@
     </div>
 </div>
 <!-- Generate Queue: makes a random shop inventory, treasure pile or spellbook. Removing a result swaps in another. -->
-<div class="modal-overlay" id="generatorModal" onclick="if (event.target === this) closeGenerator()">
+<div class="modal-overlay" id="generatorModal" onclick="if (clickedOutside(event, this)) closeGenerator()">
     <div class="modal-content generator-content">
         <button class="modal-close" onclick="closeGenerator()">✖</button>
         <div class="gen-main">
@@ -656,6 +676,11 @@
                     <option value="jeweler">Jeweler</option>
                     <option value="tailor">Tailor / Clothier</option>
                     <option value="baubles">Baubles / Curios</option>
+                    <option value="curio">Curio Wagon (travelling peddler)</option>
+                    <option value="stable">Stable / Ostler</option>
+                    <option value="shipwright">Shipwright / Chandler</option>
+                    <option value="temple">Temple</option>
+                    <option value="blackmarket">Black Market</option>
                     <option value="arcane">Arcane Supplies / Scribe</option>
                     <option value="magic">Magic Shop</option>
                     <option value="any">Anything</option>
@@ -696,6 +721,8 @@
                     <option value="mixed">Some regular gear too</option>
                 </select>
             </label>
+            <label>Gems and art objects <input type="number" id="genLootValuables" min="0" max="40" value="0" title="Gemstones and art objects worth what the DMG's treasure hoards give at this party level"></label>
+            <label class="editor-check"><input type="checkbox" id="genLootCoins"> Add a coins card (coins for this party level)</label>
         </div>
 
         <div class="gen-form" data-gen-form="spellbook">
@@ -706,13 +733,19 @@
                 <label>Highest level <select id="genSpellMax"></select></label>
             </div>
             <label>School <select id="genSpellSchool"></select></label>
+            <label>Make
+                <select id="genSpellAs">
+                    <option value="spells">Spell cards</option>
+                    <option value="scrolls">Spell scrolls</option>
+                </select>
+            </label>
             <label class="editor-check"><input type="checkbox" id="genSpellUA"> Include Unearthed Arcana spells</label>
         </div>
 
         <button class="btn-generate gen-run" onclick="runGenerator()">🎲 Generate</button>
 
         <div class="gen-results" id="genResults">
-            <div class="gen-results-head"><strong id="genResultsTitle"></strong><span class="gen-hint">✖ swaps an entry for a new one</span></div>
+            <div class="gen-results-head"><strong id="genResultsTitle"></strong><span class="gen-hint">↻ swaps an entry for a new one · ✕ removes it</span></div>
             <div class="gen-list" id="genList"></div>
             <div class="gen-note" id="genNote"></div>
             <div class="gen-footer">
@@ -858,6 +891,7 @@
         renderSourceFilters();
         applyFilters();
         updateDataStatus();
+        renderRecent();   // the items' ids changed, and unlocked or hidden items come and go
     }
 
     function clearAddedItems() {
@@ -1013,7 +1047,8 @@
 
     document.getElementById('searchInput').addEventListener('input', applyFilters);
     document.querySelectorAll('#rarityFilters input').forEach(cb => cb.addEventListener('change', applyFilters));
-    document.getElementById('breakCards').addEventListener('change', () => { if (selectedId !== null) showPreview(selectedId); });
+    document.getElementById('breakCards').addEventListener('change', () => refreshCards());
+    document.getElementById('viewAsScroll').addEventListener('change', () => { if (selectedId !== null) showPreview(selectedId); });
 
     // Web fonts load lazily, but text has to be measured with the real fonts. Request them up front and re-fit once they arrive.
     const fontsReady = (document.fonts && document.fonts.load)
@@ -1055,6 +1090,7 @@
 
     // Regular items are grouped by their Type: "Martial Melee Weapon" -> Weapons, "Light Armor" -> Armor, ...
     const REGULAR_CATEGORIES = [
+        ['Gemstones', /^gemstone\b/i], ['Art Objects', /^art object\b/i], ['Spell Components', /^spell component$/i],
         ['Mounts & Vehicles', /^(mount|drawn vehicle|waterborne vehicle|spelljamming ship|tack and harness)$/i],
         ['Weapons', /weapon/i], ['Armor', /armor|shield/i], ['Ammunition', /ammunition/i],
         ['Tools', /tool|supplies|utensils|kit|gaming set|instrument/i], ['Poisons', /poison/i], ['Explosives', /explosive/i]
@@ -1538,11 +1574,63 @@
         return pages;
     }
 
+    // --- Charge boxes: a row of empty boxes at the end of the card, for players to tick off charges with a pencil ---
+    const MAX_CHARGE_BOXES = 50;
+    const NUMBER_WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, twenty: 20, fifty: 50 };
+    const CHARGE_COUNT = '(\\d+d\\d+(?:\\s*\\+\\s*\\d+)?|\\d+|' + Object.keys(NUMBER_WORDS).join('|') + ')';
+    const CHARGE_PATTERNS = [
+        new RegExp(`\\b(?:has|have|holds|contains|starts with|with)\\s+${CHARGE_COUNT}\\s+charges?\\b`, 'i'),   // "The wand has 7 charges"
+        new RegExp(`\\bof its ${CHARGE_COUNT} charges\\b`, 'i'),                                               // "expend 1 of its 10 charges"
+        new RegExp(`\\bcharges?\\b[^.]{0,80}?\\bto a maximum of ${CHARGE_COUNT}\\b`, 'i'),                       // "gains 1 charge (to a maximum of 5)"
+    ];
+    // "7" -> 7, "seven" -> 7, "1d6 + 1" -> 7 (the most it can have)
+    function chargeNumber(text) {
+        const dice = text.match(/^(\d+)d(\d+)(?:\s*\+\s*(\d+))?$/i);
+        if (dice) return dice[1] * dice[2] + (parseInt(dice[3], 10) || 0);
+        return NUMBER_WORDS[text.toLowerCase()] || parseInt(text, 10) || 0;
+    }
+    // How many charge boxes an item's card gets (0 for none). A "Charges" column in your own CSV sets it directly.
+    function itemCharges(item) {
+        if (isSpell(item) || isMundane(item)) return 0;
+        if ((item.Charges || '').toString().trim() !== '') return Math.min(Math.max(parseInt(item.Charges, 10) || 0, 0), MAX_CHARGE_BOXES);
+        for (const pattern of CHARGE_PATTERNS) {
+            const match = (item.Description || '').match(pattern);
+            if (match) {
+                const n = chargeNumber(match[1]);
+                return n > 0 && n <= MAX_CHARGE_BOXES ? n : 0;
+            }
+        }
+        return 0;
+    }
+    function chargeBoxesHtml(n) {
+        return `<div class="charge-boxes" title="${n} charges"><span class="charge-label">Charges</span>`
+            + '<span class="charge-box"></span>'.repeat(n) + '</div>';
+    }
+    const CHARGES_STORAGE_KEY = 'cardMaker.showCharges';
+    let showCharges = true;
+    try { showCharges = localStorage.getItem(CHARGES_STORAGE_KEY) !== 'false'; } catch (err) { }
+    document.getElementById('showCharges').checked = showCharges;
+    document.getElementById('showCharges').addEventListener('change', (e) => {
+        showCharges = e.target.checked;
+        try { localStorage.setItem(CHARGES_STORAGE_KEY, String(showCharges)); } catch (err) { }
+        refreshCards();
+    });
+
+    // Rebuilds the cards already shown or queued (after an option that changes them, like the charge boxes)
+    function refreshCards() {
+        printQueue.forEach(entry => { entry.specs = getCardSpecs(entry.item); });
+        renderQueue();
+        if (selectedId !== null) showPreview(selectedId);
+    }
+
     // Returns the printable cards for an item: normally one. If the description is too long for a single card:
     //  - "Break into multiple cards" ticked: several cards, all at the same text size
     //  - unticked: one card that says "See <source>"
+    // Charge boxes go at the end of the text, so they're on the last card.
     function getCardSpecs(item) {
+        const charges = showCharges ? itemCharges(item) : 0;
         const blocks = descriptionBlocks(cardDescription(item));
+        if (charges) blocks.push({ kind: 'block', html: chargeBoxesHtml(charges) });
 
         if (blocksFit(blocks, MIN_DESC_PT)) {
             return [{ item, descHtml: joinBlocks(blocks), page: 1, pages: 1 }];
@@ -1551,7 +1639,7 @@
         if (!document.getElementById('breakCards').checked) {
             const source = (item.Source || '').trim();
             const see = source && source !== 'Unknown Source' ? `See ${source}` : 'See the source book';
-            return [{ item, descHtml: escapeHtml(see), page: 1, pages: 1 }];
+            return [{ item, descHtml: escapeHtml(see) + (charges ? chargeBoxesHtml(charges) : ''), page: 1, pages: 1 }];
         }
 
         const pages = paginateBlocks(blocks, MIN_DESC_PT);
@@ -1575,12 +1663,39 @@
         if (item && itemTab(item) !== currentTab) setTab(itemTab(item));
         if (phoneLayout.matches) openSheet('preview');
         showPreview(id);
+        if (item) addRecent(item);
     }
 
+    // --- Recently viewed: the last items picked, newest first, remembered in this browser ---
+    const RECENT_STORAGE_KEY = 'cardMaker.recent', MAX_RECENT = 8;
+    let recentKeys = [];
+    try { recentKeys = JSON.parse(localStorage.getItem(RECENT_STORAGE_KEY) || '[]').filter(k => typeof k === 'string'); } catch (err) { }
+    function saveRecent() { try { localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(recentKeys)); } catch (err) { } }
+    function addRecent(item) {
+        const key = itemKey(item);
+        recentKeys = [key, ...recentKeys.filter(k => k !== key)].slice(0, MAX_RECENT);
+        saveRecent();
+        renderRecent();
+    }
+    function clearRecent() { recentKeys = []; saveRecent(); renderRecent(); }
+    // Items that aren't in the list right now (locked personal items, hidden secondary entries) are left out until they are
+    function renderRecent() {
+        const box = document.getElementById('recentItems');
+        const items = recentKeys.map(key => allItems.find(item => itemKey(item) === key)).filter(Boolean);
+        box.style.display = items.length ? 'flex' : 'none';
+        box.innerHTML = '<span class="recent-label">Recent:</span>'
+            + items.map(item => `<button type="button" title="${escapeHtml(item.Type || '').replace(/"/g, '&quot;')}" onclick="selectItem(${item.id})">${escapeHtml(item.Name)}</button>`).join('')
+            + '<button type="button" class="recent-clear" title="Clear the recent items" aria-label="Clear the recent items" onclick="clearRecent()">✕</button>';
+    }
+
+    // The card shown for an item in the preview: a spell can be shown as a spell scroll instead ("View as spell scroll")
+    const previewedCard = (item) => isSpell(item) && document.getElementById('viewAsScroll').checked ? makeScroll(item) : item;
+
     function showPreview(id) {
-        const item = allItems.find(i => i.id === id);
-        if (!item) return;
+        const listed = allItems.find(i => i.id === id);
+        if (!listed) return;
         selectedId = id;
+        const item = previewedCard(listed);
 
         const wrap = document.getElementById('previewWrap');
         wrap.innerHTML = '';
@@ -1591,7 +1706,7 @@
             slot.className = 'preview-slot';
             const card = buildCard(spec);
             card.title = 'Click for full details';
-            card.addEventListener('click', () => showItemDetails(id));
+            card.addEventListener('click', () => showItemDetails(item.generated ? item : id));
             slot.appendChild(card);
             wrap.appendChild(slot);
         });
@@ -1606,6 +1721,7 @@
         document.getElementById('previewAddBtn').textContent = specs.length > 1
             ? `+ Add ${specs.length} Cards to Queue`
             : '+ Add to Queue';
+        document.getElementById('previewScrollToggle').style.display = isSpell(listed) ? 'flex' : 'none';
 
         fitText(wrap);
         fontsReady.then(() => fitText(wrap));  // re-fit in case a font was still loading
@@ -1626,8 +1742,9 @@
     }
 
     // --- 5. Modal Details ---
+    // id: an item in the list, or the item itself (a card made on the spot, like a hoard's coins or a spell scroll)
     function showItemDetails(id) {
-        const item = allItems.find(i => i.id === id);
+        const item = typeof id === 'object' ? id : allItems.find(i => i.id === id);
         document.getElementById('modalName').innerText = item.Name;
         document.getElementById('modalRarity').innerText = isSpell(item) ? 'Spell' : isMundane(item) ? 'Regular item' : item.Rarity;
         document.getElementById('modalType').innerText = item.Type;
@@ -1646,6 +1763,14 @@
     }
 
     function closeModal(e, force) { if (force || e.target.id === 'itemModal') document.getElementById('itemModal').style.display = 'none'; }
+
+    // A window closes when you click the dark area around it, but only if the click also started there: selecting
+    // text in a box and letting go of the mouse outside the window counts as a click on the dark area, and shouldn't close it
+    let pressedOn = null;
+    document.addEventListener('pointerdown', (e) => { pressedOn = e.target; }, true);
+    function clickedOutside(event, overlay) {
+        return event.target === overlay && pressedOn === overlay;
+    }
 
     // --- 5b. Item art ---
     // "Load art folder" reads a folder of images named after items ("Aberrant Nail.png"), shrinks each one and keeps it
@@ -1841,6 +1966,7 @@
     function showQueuedCard(idx) {
         const entry = printQueue[idx];
         // The list is renumbered when items are added or changed, so look the item up again by name and rarity if needed
+        if (entry.item.generated) return showItemDetails(entry.item);   // coins, a spell scroll: not in the item list
         const item = allItems.find(i => i === entry.item) || allItems.find(i => itemKey(i) === itemKey(entry.item));
         if (!item) return alert(`"${entry.item.Name}" is no longer in the item list, so it can't be previewed. It will still print.`);
         selectItem(item.id);
@@ -2136,6 +2262,10 @@
     // an entry calls it once more to fill the gap. Removed entries are remembered so they don't come back.
     let genTab = 'shop', genPicker = null, genList = [], genRemoved = new Set();
     let genSelected = null;   // index in genList of the entry shown in the preview
+    // For each entry of genList: how many of it (gems in a hoard), and its own way of being replaced (coins, gems)
+    // instead of genPicker; genAsScrolls: the spellbook's spells become spell scrolls
+    let genCounts = [], genReplacers = [], genAsScrolls = false;
+    const shownGenerated = (item) => genAsScrolls && isSpell(item) ? makeScroll(item) : item;
 
     const pickRandom = (list) => list[Math.floor(Math.random() * list.length)];
     function pickWeighted(weights) {   // { key: weight } -> a key, chosen in proportion to its weight
@@ -2173,6 +2303,8 @@
         return match ? Number(match[1]) * { cp: 0.01, sp: 0.1, ep: 0.5, gp: 1, pp: 10 }[match[2].toLowerCase()] : NaN;
     }
 
+    // A cursed item: a "Curse." section, or text that says it's cursed (not just one that mentions ending a curse)
+    const isCursed = (item) => /\*\*\*?curse[ds]?\b|\bcursed\b/i.test(item.Description || '');
     const typeOrName = (pattern) => (item) => pattern.test(item.Type || '') || pattern.test(item.Name || '');
     const JEWELRY = /\b(ring|amulet|necklace|brooch|circlet|crown|diadem|gem|jewel|pearl|periapt|medallion|pendant|bracelet|bracers|scarab|talisman|torc|earring|locket|stone|emerald|ruby|sapphire|diamond)\b/i;
 
@@ -2199,7 +2331,8 @@
                      // An apothecary is mostly potions: more of its stock is magic, and potions are its likeliest magic item
                      magicBoost: 0.35, prefer: /^potion/i },
         // (not Ring Mail or a ruby-studded sword)
-        jeweler:   { regular: item => /\b(amulet|ring|emblem|reliquary|jeweler's|crystal)\b/i.test(item.Name) && itemCategory(item) !== 'Armor',
+        jeweler:   { regular: item => ['Gemstones', 'Art Objects'].includes(itemCategory(item))
+                         || (/\b(amulet|ring|emblem|reliquary|jeweler's|crystal)\b/i.test(item.Name) && itemCategory(item) !== 'Armor'),
                      magic: item => typeOrName(JEWELRY)(item) && !/armor|weapon|shield/i.test(item.Type || ''),
                      favor: { regular: /\b(signet|mirror|perfume|merchant's|hourglass|magnifying glass)\b/i,
                               magic: /\b(figurine|ioun|gold|golden|silver|platinum|jade|ivory|crystal|opal|onyx|obsidian|mirror|scepter|chalice|goblet|coins?|beads?|charm)\b/i } },
@@ -2212,9 +2345,39 @@
                      magic: item => /wondrous|^ring/i.test(item.Type || ''),
                      favor: { regular: /\b(bell|whistle|mirror|signet|perfume|ball bearings|hourglass|magnifying glass|playing card|dice|chess|bead|abacus|incense)\b/i,
                               magic: /\b(figurine|beads?|marbles?|stone|deck|whistle|horn|pipes|box|candle|feather|coins?|toy|bell|dice|token|chimes?|orb|charm|trinket|bottle|mirror|ioun|music|ball|egg|key|lens|eyes?|statuette|puzzle|cards?|doll|cube|sphere|pearl|gem|amulet|pendant|brooch)\b/i } },
-        arcane:    { regular: item => /focus|holy symbol/i.test(item.Type || '') || /\b(spellbook|component pouch|ink|ink pen|paper|parchment|calligrapher's|book|sealing wax|chalk)\b/i.test(item.Name), magic: typeOrName(/scroll|wand|staff|rod|tome|manual|spellbook|orb|crystal ball/i),
+        arcane:    { regular: item => itemCategory(item) === 'Spell Components' || /focus|holy symbol/i.test(item.Type || '') || /\b(spellbook|component pouch|ink|ink pen|paper|parchment|calligrapher's|book|sealing wax|chalk)\b/i.test(item.Name), magic: typeOrName(/scroll|wand|staff|rod|tome|manual|spellbook|orb|crystal ball/i),
                      favor: { regular: /\b(candle|scroll case|map|magnifying glass|hourglass|robes|lamp|lantern|crystal|orb|wand|staff|rod)\b/i,
                               magic: /\b(robes?|hat|spell|spells|arcane|mage|magi|wizard|sorcerer|warlock|ink|quill|book|candle|pearl of power|ioun|crystal|focus|grimoire|pages?)\b/i } },
+        stable:    { regular: item => ['Mount', 'Tack and Harness', 'Drawn Vehicle'].includes(item.Type),
+                     magic: typeOrName(/\b(horseshoes?|saddle|bridle|barding|steed|horse|pegasus|hippogriff|figurine of wondrous power|spurs|stag)\b/i),
+                     favor: { regular: /\b(feed|saddle|rope|lantern|blanket|bedroll|whip)\b/i, magic: /\b(horseshoes?|saddle|bridle|barding|steed|horse|spurs)\b/i } },
+        shipwright: { regular: item => ['Waterborne Vehicle', 'Spelljamming Ship'].includes(item.Type)
+                         || (itemCategory(item) === 'Adventuring Gear' || itemCategory(item) === 'Tools' || itemCategory(item) === 'Weapons')
+                            && /\b(rope|grappling hook|navigator's tools|spyglass|fishing tackle|signal whistle|net|lantern|oil|pitons?)\b/i.test(item.Name),
+                     magic: typeOrName(/\b(ship|boat|sail|anchor|sea|waves?|tides?|navigat\w*|captain|mariner|figurehead|harpoon|trident|water breathing|swimming|nautical|compass|spyglass)\b/i),
+                     favor: { regular: /\b(rope|navigator's tools|spyglass|fishing tackle)\b/i, magic: /\b(anchor|sail|captain|mariner|sea|tides?|ship|boat)\b/i } },
+        temple:    { regular: item => /holy symbol/i.test(item.Type || '')
+                         // the holy spell components: diamonds for Revivify and Raise Dead, incense, holy water, reliquaries...
+                         || (itemCategory(item) === 'Spell Components' && /\b(diamonds?|holy water|incense|reliquary|pearl|powdered silver|offering)\b/i.test(item.Name))
+                         || /\b(holy water|healer's kit|antitoxin|candle|incense|vestments|prayer|robes?|censer|reliquary|emblem|amulet|bell|book|ink|paper|parchment)\b/i.test(item.Name),
+                     magic: typeOrName(/\b(holy|healing|heal|restoration|bless\w*|prayer|divine|sacred|radiant|censer|incense|vestments|reliquary|celestial|angel\w*|saint|cleric|paladin|priest|temple|dawn|sun)\b/i),
+                     favor: { regular: /\b(holy water|healer's kit|candle|incense)\b/i, magic: /\b(holy|healing|restoration|divine|sacred|blessed|prayer)\b/i },
+                     magicBoost: 0.15, prefer: item => /\bhealing\b/i.test(item.Name) },
+        blackmarket: { regular: item => ['Poisons', 'Explosives'].includes(itemCategory(item))
+                         || /\b(thieves' tools|disguise kit|forgery kit|poisoner's kit|manacles|caltrops|ball bearings|crowbar|lock|hand crossbow|blowgun|signet ring)\b/i.test(item.Name),
+                     // cursed items (their text has a "Curse" section or says it's cursed) and anything shady
+                     magic: item => isCursed(item)
+                         || typeOrName(/\b(assassin\w*|thie(?:f|ves)\w*|shadow\w*|poison\w*|venom\w*|cursed|stealth|invisib\w*|disguise|forg\w*|smuggl\w*|lockpick\w*|silence|slaying|vampir\w*|blood\w*|fiend\w*|infernal|necro\w*)\b/i)(item),
+                     favor: { regular: /\b(poison|thieves' tools|disguise kit|forgery kit|poisoner's kit)\b/i, magic: /\b(assassin|thie(?:f|ves)|poison|venom|shadow)\w*/i },
+                     magicBoost: 0.2, prefer: isCursed },
+        curio:     { regular: item => !['Poisons', 'Explosives'].includes(itemCategory(item)) && (itemCategory(item) === 'Art Objects'
+                         || /musical instrument|gaming set/i.test(item.Type || '')
+                         || /\b(bell|whistle|mirror|candle|hourglass|magnifying glass|perfume|abacus|chalk|bead|lamp|lantern|spyglass|playing card|dice|signet|bottle|map|incense|book)\b/i.test(item.Name)),
+                     magic: item => /^(wondrous|ring|wand)/i.test(item.Type || ''),
+                     favor: { regular: /\b(mirror|hourglass|spyglass|dice|playing card|music|bell)\b/i,
+                              magic: /\b(figurine|beads?|marbles?|deck|whistle|horn|pipes|box|feather|coins?|toy|bell|dice|token|chimes?|charm|trinket|bottle|mirror|music|egg|key|lens|statuette|puzzle|cards?|doll|cube|sphere)\b/i },
+                     // a travelling peddler's odds and ends: mostly cheap curiosities
+                     magicBoost: 0.1, prefer: item => (item.Rarity || '').toLowerCase() === 'common' },
         magic:     { regular: () => false, magic: () => true, magicOnly: true },
         any:       { regular: () => true, magic: () => true },
     };
@@ -2236,8 +2399,9 @@
             && (shop.magic(item) || (favorMagic(item) && !/^(potion|scroll)/i.test(item.Type || ''))));
         // Regular items without a price (modern firearms, ...) aren't sold
         const regularPool = allItems.filter(item => isMundane(item) && (shop.regular(item) || favorRegular(item)) && costInGp(item) <= wealth.maxCost);
-        // prefer: the shop's speciality (by Type), four times as likely as an ordinary magic item
-        const magicWeight = (item) => shop.prefer && shop.prefer.test(item.Type || '') ? 4 : favorMagic(item) ? 2 : 1;
+        // prefer: the shop's speciality (a pattern for the Type, or a test of the item), four times as likely as an ordinary magic item
+        const prefers = typeof shop.prefer === 'function' ? shop.prefer : (item) => !!shop.prefer && shop.prefer.test(item.Type || '');
+        const magicWeight = (item) => prefers(item) ? 4 : favorMagic(item) ? 2 : 1;
         const regularWeight = (item) => favorRegular(item) ? 2 : 1;
         // magicBoost: a shop that is mostly magic stock gets this much more of it than the wealth alone gives (up to 90%)
         const magicShare = shop.magicOnly ? 1 : Math.min(0.9, wealth.magic + (shop.magicBoost || 0));
@@ -2267,8 +2431,9 @@
         const kind = LOOT_KINDS[document.getElementById('genLootKind').value];
         const mixed = document.getElementById('genLootMix').value === 'mixed';
         const magicPool = allItems.filter(item => itemTab(item) === 'magic' && kind(item));
-        // (no horses or ships in a loot pile)
-        const regularPool = mixed ? allItems.filter(item => isMundane(item) && kind(item) && itemCategory(item) !== 'Mounts & Vehicles') : [];
+        // (no horses or ships in a loot pile; gems and art come with a treasure hoard instead)
+        const regularPool = mixed ? allItems.filter(item => isMundane(item) && kind(item)
+            && !['Mounts & Vehicles', 'Gemstones', 'Art Objects'].includes(itemCategory(item))) : [];
         return (used) => {
             const magicFirst = !mixed || Math.random() < 0.7;
             return magicFirst ? (pickMagic(magicPool, tier, used) || pickAny(regularPool, used))
@@ -2297,6 +2462,88 @@
     }
     const GENERATORS = { shop: { picker: shopPicker, count: 'genShopCount' }, loot: { picker: lootPicker, count: 'genLootCount' },
                          spellbook: { picker: spellbookPicker, count: 'genSpellCount' } };
+
+    // --- Treasure hoards: coins and gems or art objects by party level, following the DMG's hoard tables ---
+    // coins: [coin, number of d6, times]; valuables: the kinds of gem or art object (and their values) the level's hoards give
+    const HOARDS = {
+        1: { coins: [['cp', 6, 100], ['sp', 3, 100], ['gp', 2, 10]],
+             valuables: [['Gemstone', '10 gp'], ['Art Object', '25 gp'], ['Gemstone', '50 gp']] },
+        2: { coins: [['cp', 2, 100], ['sp', 2, 1000], ['gp', 6, 100], ['pp', 3, 10]],
+             valuables: [['Art Object', '25 gp'], ['Gemstone', '50 gp'], ['Gemstone', '100 gp'], ['Art Object', '250 gp']] },
+        3: { coins: [['gp', 4, 1000], ['pp', 5, 100]],
+             valuables: [['Art Object', '250 gp'], ['Art Object', '750 gp'], ['Gemstone', '500 gp'], ['Gemstone', '1,000 gp']] },
+        4: { coins: [['gp', 12, 1000], ['pp', 8, 1000]],
+             valuables: [['Gemstone', '1,000 gp'], ['Art Object', '2,500 gp'], ['Art Object', '7,500 gp'], ['Gemstone', '5,000 gp']] },
+    };
+    const COIN_NAMES = { cp: 'Copper', sp: 'Silver', ep: 'Electrum', gp: 'Gold', pp: 'Platinum' };
+    const COIN_GP = { cp: 0.01, sp: 0.1, ep: 0.5, gp: 1, pp: 10 };
+    function rollDice(text) {   // "3d6" -> 3 to 18
+        const [n, sides] = text.split('d').map(Number);
+        let total = 0;
+        for (let i = 0; i < n; i++) total += 1 + Math.floor(Math.random() * sides);
+        return total;
+    }
+
+    // The coins of a hoard, as a card of their own (not one of the list's items: it's made for this hoard)
+    function coinsCard(tier) {
+        const amounts = HOARDS[tier].coins.map(([coin, dice, times]) => [coin, rollDice(`${dice}d6`) * times]);
+        const total = Math.round(amounts.reduce((sum, [coin, n]) => sum + n * COIN_GP[coin], 0));
+        return {
+            Name: 'Coins', Rarity: 'mundane', Attunement: `${total.toLocaleString()} gp in all`, Type: 'Treasure', Source: 'Treasure hoard',
+            Description: amounts.map(([coin, n]) => `**${COIN_NAMES[coin]}:** ${n.toLocaleString()} ${coin}`).join('\n')
+                + `\n**Worth in gold:** ${total.toLocaleString()} gp`,
+            URL: '', Notes: '', generated: true,
+        };
+    }
+
+    // The gems or art objects of a hoard: [{ item, count }], several of the same stone counting as one entry
+    // How many gems and art objects is your choice; each is worth one of the values the party level's hoards give.
+    // Returns [{ item, count }], several of the same stone counting as one entry.
+    function rollValuables(tier, count) {
+        const counts = new Map();
+        for (let i = 0; i < count; i++) {
+            const [kind, value] = pickRandom(HOARDS[tier].valuables);
+            const pool = valuablesLike(`${kind} (${value})`);
+            if (pool.length) { const item = pickRandom(pool); counts.set(item, (counts.get(item) || 0) + 1); }
+        }
+        return [...counts].map(([item, n]) => ({ item, count: n }));
+    }
+    const valuablesLike = (type) => allItems.filter(item => isMundane(item) && (item.Type || '') === type);
+
+    // --- Spell scrolls (DMG spell scroll table; price = Xanathar's cost to scribe one) ---
+    const SCROLLS = [   // by spell level: rarity, save DC, attack bonus, price
+        ['common', 13, 5, '15 gp'], ['common', 13, 5, '25 gp'], ['uncommon', 13, 5, '250 gp'], ['uncommon', 15, 7, '500 gp'],
+        ['rare', 15, 7, '2,500 gp'], ['rare', 17, 9, '5,000 gp'], ['very rare', 17, 9, '15,000 gp'], ['very rare', 18, 10, '25,000 gp'],
+        ['very rare', 18, 10, '50,000 gp'], ['legendary', 19, 11, '250,000 gp'],
+    ];
+    function makeScroll(spell) {
+        const level = spellLevel(spell) ?? 0;
+        const [rarity, dc, attack, price] = SCROLLS[level];
+        const levelText = level ? `${LEVEL_NAMES[level]}-level` : 'Cantrip';
+        return {
+            Name: `Spell Scroll: ${spell.Name}`, Rarity: rarity, Attunement: '', Type: `Scroll (${levelText} ${spellSchool(spell)})`.replace('  ', ' '),
+            Source: spell.Source, URL: spell.URL, Notes: '', generated: true, scrollOf: itemKey(spell),
+            Description: [`**Save DC:** ${dc} · **Attack bonus:** +${attack} · **Price:** ${price}`,
+                `*Reading the scroll casts the spell without material components; then the scroll crumbles to dust. If ${spell.Name} isn't on your class's spell list, you can't read it${level ? `, and a spell above the level you can cast needs a DC ${10 + level} ability check with your spellcasting ability` : ''}.*`,
+                cardDescription(spell)].join('\n'),
+        };
+    }
+
+    // The preview's Add to Queue: the item, or for a spell shown as a scroll, its Spell Scroll card
+    function addPreviewToQueue() {
+        const listed = allItems.find(i => i.id === selectedId);
+        if (!listed) return;
+        const shown = previewedCard(listed);
+        if (shown.generated) addObjectToQueue(shown); else addToQueue(selectedId);
+    }
+
+    // Adds one of the generated cards (coins, a scroll) to the print queue; the same scroll again adds copies
+    function addObjectToQueue(item, copies = 1, merge = true) {
+        const queued = merge && printQueue.find(entry => itemKey(entry.item) === itemKey(item));
+        if (queued) queued.copies = Math.min(queued.copies + copies, MAX_COPIES);
+        else printQueue.push(queueEntry(item, copies));
+        renderQueue();
+    }
 
     function openGenerator() {
         // The spellbook's choices come from the spells themselves (classes, schools)
@@ -2329,7 +2576,7 @@
     // Shows a generated entry's card(s) in the preview. openOnPhone: a tap on the entry, which on phones swaps the list for the card.
     function previewGenerated(index, openOnPhone) {
         genSelected = index === null || index >= genList.length ? null : index;
-        const item = genSelected === null ? null : genList[genSelected];
+        const item = genSelected === null ? null : shownGenerated(genList[genSelected]);
         if (item && openOnPhone && phoneLayout.matches) document.querySelector('.generator-content').classList.add('show-preview');
 
         const wrap = document.getElementById('genPreview');
@@ -2345,7 +2592,7 @@
             slot.className = 'preview-slot';
             const card = buildCard(spec);
             card.title = 'Click for full details';
-            card.addEventListener('click', () => showItemDetails(item.id));
+            card.addEventListener('click', () => showItemDetails(item.generated ? item : item.id));
             slot.appendChild(card);
             wrap.appendChild(slot);
         });
@@ -2362,7 +2609,7 @@
     }
 
     function setGeneratorTab(tab) {
-        if (tab !== genTab) { genList = []; genPicker = null; genSelected = null; }   // a list belongs to the tab that made it
+        if (tab !== genTab) { genList = []; genCounts = []; genReplacers = []; genPicker = null; genSelected = null; }   // a list belongs to the tab that made it
         genTab = tab;
         document.querySelectorAll('#generatorModal .kind-tabs button').forEach(b => {
             b.classList.toggle('active', b.dataset.gen === tab);
@@ -2378,6 +2625,9 @@
         genPicker = generator.picker();
         genRemoved = new Set();
         genList = [];
+        genCounts = [];
+        genReplacers = [];
+        genAsScrolls = genTab === 'spellbook' && document.getElementById('genSpellAs').value === 'scrolls';
         const used = new Set();
         while (genList.length < count) {
             const item = genPicker(used);
@@ -2385,18 +2635,41 @@
             used.add(itemKey(item));
             genList.push(item);
         }
-        document.getElementById('genNote').textContent = genList.length < count
-            ? (genList.length ? `Only ${genList.length} fit these choices.` : 'Nothing fits these choices. Try a different shop, wealth or level range.') : '';
+        const found = genList.length;
+
+        // Loot's treasure goes in front of the items: the coins card, then the gems and art objects
+        if (genTab === 'loot') {
+            const tier = document.getElementById('genLootTier').value;
+            const valuables = Math.max(0, Math.min(40, parseInt(document.getElementById('genLootValuables').value, 10) || 0));
+            const entries = rollValuables(tier, valuables);
+            // ↻ on a gem or art object swaps it for another of the same value
+            const replaceLike = (item) => (taken) => pickAny(valuablesLike(item.Type), taken);
+            genList.unshift(...entries.map(e => e.item));
+            genCounts.unshift(...entries.map(e => e.count));
+            genReplacers.unshift(...entries.map(e => replaceLike(e.item)));
+            if (document.getElementById('genLootCoins').checked) {
+                genList.unshift(coinsCard(tier));
+                genCounts.unshift(1);
+                genReplacers.unshift(() => coinsCard(tier));
+            }
+        }
+        while (genCounts.length < genList.length) genCounts.push(1);
+
+        document.getElementById('genNote').textContent = found < count
+            ? (found ? `Only ${found} fit these choices.` : 'Nothing fits these choices. Try a different shop, wealth or level range.') : '';
         genSelected = genList.length ? 0 : null;   // show the first entry's card
         renderGeneratorList();
     }
 
-    // Removes one entry; another random one (not removed before) takes its place, if any are left
+    // ↻: swaps one entry for another random one (never one removed before), if any are left.
+    // Coins are rolled again, and a gem or art object is swapped for another of the same value (the same number of them).
     function removeGenerated(index) {
-        genRemoved.add(itemKey(genList[index]));
+        const replacer = genReplacers[index];
+        if (!genList[index].generated) genRemoved.add(itemKey(genList[index]));
         const used = new Set([...genRemoved, ...genList.map(itemKey)]);
-        const replacement = genPicker ? genPicker(used) : null;
-        if (replacement) genList[index] = replacement; else genList.splice(index, 1);
+        const replacement = replacer ? replacer(used) : genPicker ? genPicker(used) : null;
+        if (replacement) genList[index] = replacement;
+        else { genList.splice(index, 1); genCounts.splice(index, 1); genReplacers.splice(index, 1); }
         document.getElementById('genNote').textContent = replacement ? '' : 'Nothing else fits these choices, so that entry was removed without a replacement.';
         // The preview follows: a swapped entry shows its replacement; the list closing up shifts the selection with it
         if (genSelected !== null && !replacement && genSelected > index) genSelected--;
@@ -2404,7 +2677,20 @@
         renderGeneratorList(replacement ? index : null);
     }
 
+    // ✕: takes an entry off the list for good, with nothing in its place (and it won't come back on a ↻)
+    function discardGenerated(index) {
+        if (!genList[index].generated) genRemoved.add(itemKey(genList[index]));
+        genList.splice(index, 1);
+        genCounts.splice(index, 1);
+        genReplacers.splice(index, 1);
+        document.getElementById('genNote').textContent = '';
+        if (genSelected !== null && genSelected > index) genSelected--;
+        if (genSelected !== null && genSelected >= genList.length) genSelected = genList.length ? genList.length - 1 : null;
+        renderGeneratorList();
+    }
+
     function generatedMeta(item) {
+        if (genAsScrolls && isSpell(item)) return `${titleCase(makeScroll(item).Rarity)} spell scroll · ${spellLevel(item) ? LEVEL_NAMES[spellLevel(item)] + ' level' : 'Cantrip'}`;
         if (isSpell(item)) return `${spellLevel(item) ? LEVEL_NAMES[spellLevel(item)] + ' level' : 'Cantrip'} · ${spellSchool(item)}`;
         if (isMundane(item)) return [item.Attunement, item.Type].filter(Boolean).join(' · ');
         return [titleCase(item.Rarity || ''), item.Type].filter(Boolean).join(' · ');
@@ -2413,28 +2699,37 @@
     function renderGeneratorList(swappedIndex = null) {
         const results = document.getElementById('genResults');
         results.classList.toggle('active', genPicker !== null);
-        document.getElementById('genResultsTitle').textContent = `${genList.length} ${genTab === 'spellbook' ? (genList.length === 1 ? 'spell' : 'spells') : (genList.length === 1 ? 'item' : 'items')}`;
+        const cards = genCounts.reduce((sum, n) => sum + n, 0);
+        const noun = genTab === 'spellbook' ? (genAsScrolls ? 'scroll' : 'spell') : 'item';
+        document.getElementById('genResultsTitle').textContent = `${genList.length} ${noun}${genList.length === 1 ? '' : 's'}`
+            + (cards > genList.length ? ` (${cards} cards)` : '');
         document.getElementById('genList').innerHTML = genList.map((item, i) => `
             <div class="gen-item${i === swappedIndex ? ' swapped' : ''}">
                 <div class="gen-item-text" title="Show its card" onclick="previewGenerated(${i}, true)">
-                    <div class="gen-item-name">${escapeHtml(item.Name)}</div>
+                    <div class="gen-item-name">${escapeHtml(shownGenerated(item).Name)}${genCounts[i] > 1 ? ` <span class="gen-count">×${genCounts[i]}</span>` : ''}</div>
                     <div class="gen-item-meta">${escapeHtml(generatedMeta(item))}</div>
                 </div>
-                <button class="btn-remove" title="Remove (another takes its place)" aria-label="Remove ${escapeHtml(item.Name).replace(/"/g, '&quot;')}" onclick="removeGenerated(${i})">✖</button>
+                <button class="btn-reroll" title="${item.generated ? 'Roll again' : 'Swap for a new one'}" aria-label="Swap ${escapeHtml(item.Name).replace(/"/g, '&quot;')} for a new one" onclick="removeGenerated(${i})">↻</button>
+                <button class="btn-remove" title="Remove from the list" aria-label="Remove ${escapeHtml(item.Name).replace(/"/g, '&quot;')}" onclick="discardGenerated(${i})">✕</button>
             </div>`).join('');
         const addBtn = document.getElementById('genAddBtn');
-        addBtn.textContent = `+ Add ${genList.length} to Queue`;
+        addBtn.textContent = `+ Add ${cards} to Queue`;
         addBtn.disabled = !genList.length;
         previewGenerated(genSelected);
     }
 
     function addGeneratedToQueue() {
-        // The list can outlive a change to the item list (e.g. an item edited meanwhile), so look items up again
-        genList.forEach(item => {
-            const current = allItems.find(i => i === item) || allItems.find(i => itemKey(i) === itemKey(item));
-            if (current) addToQueue(current.id);
+        genList.forEach((item, i) => {
+            const copies = genCounts[i] || 1;
+            if (genAsScrolls && isSpell(item)) return addObjectToQueue(makeScroll(item), copies);
+            if (item.generated) return addObjectToQueue(item, copies, false);   // each hoard's coins are their own card
+            // The list can outlive a change to the item list (e.g. an item edited meanwhile), so look items up again
+            const current = allItems.find(it => it === item) || allItems.find(it => itemKey(it) === itemKey(item));
+            if (current) for (let c = 0; c < copies; c++) addToQueue(current.id);
         });
         genList = [];
+        genCounts = [];
+        genReplacers = [];
         genPicker = null;
         genSelected = null;
         closeGenerator();
