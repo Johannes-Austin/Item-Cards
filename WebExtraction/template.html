@@ -101,6 +101,24 @@
 
         /* CSV file box and Create Item button, side by side */
         .data-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 10px; }
+        .data-row { align-items: center; }
+        .data-summary { flex: 1; min-width: 200px; font-size: 13px; color: #555; }
+        /* Data & Settings window */
+        .modal-content.settings-content { max-width: 720px; width: 95%; max-height: 90vh; }
+        .settings-section { border-top: 1px solid #eee; padding: 12px 0 4px; }
+        .settings-section h3 { margin: 0 0 8px; font-size: 16px; }
+        .settings-section .csv-box { display: block; }
+        .settings-line { margin: 0 0 8px; font-size: 14px; }
+        .settings-note { margin: 0 0 6px; font-size: 13px; color: #666; }
+        .settings-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .settings-buttons button, .settings-section .btn-secondary { padding: 4px 10px; font-size: 13px; }
+        .settings-footer { position: sticky; bottom: -30px; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; margin: 10px -30px -30px; padding: 12px 30px; background: #fff; border-top: 1px solid #ddd; }
+        .settings-saved { flex: 1; font-size: 13px; color: #666; }
+        .settings-saved.unsaved { color: #a15c00; }
+        #settingsBtn.unsaved::after { content: ' •'; color: #e8890c; }
+        #sourceSearch { flex: 1; min-width: 140px; margin: 0; padding: 3px 8px; font-size: 13px; }
+        .source-kinds { color: #888; font-size: 12px; }
+        .settings-section .source-summary { font-weight: normal; color: #666; font-size: 13px; }
         .csv-box { flex: 1; min-width: 220px; font-size: 12px; color: #555; }
         .csv-box input[type="file"] { padding: 4px; margin: 3px 0 0; font-size: 12px; }
         .secondary-toggle { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; white-space: nowrap; cursor: pointer; }
@@ -303,7 +321,7 @@
             input[type="text"], input[type="number"], select, textarea { font-size: 16px !important; }
 
             .data-row { gap: 8px; }
-            .data-row > button { width: 100%; }
+            .data-row > button { flex: 1 1 40%; }
             .filter-group { gap: 8px 12px; }
             .catalog-tabs button { padding: 10px 4px; font-size: 13px; }
             /* Spell filters: each label goes above its pills so the pills get the full width */
@@ -397,39 +415,11 @@
 
     <div class="panel catalog-panel">
         <h2 style="margin-top: 0;">📚 Item Database</h2>
+        <!-- What data the page has: the details and settings are in the Data & Settings window -->
         <div class="data-row">
-            <label class="csv-box">Add more items from a CSV file (same columns as items.csv):
-                <input type="file" id="csvFileInput" accept=".csv" multiple>
-            </label>
+            <div class="data-summary" id="dataSummary"></div>
+            <button class="btn-secondary" id="settingsBtn" onclick="openSettings()">⚙️ Data &amp; Settings</button>
             <button class="btn-add" onclick="openEditor(null)">✚ Create Item</button>
-        </div>
-        <div style="font-size: 13px; color: #555; margin: -4px 0 12px;">
-            <span id="dataStatusText"></span>
-            <label id="secondaryToggle" class="secondary-toggle" style="display: none;" title="Items and spells from third-party books (open5eItems.csv, open5eSpells.csv)">
-                <input type="checkbox" id="includeSecondary" checked onchange="setIncludeSecondary(this.checked)"> Include secondary entries
-            </label>
-            <!-- Personal items are embedded encrypted (see build_single_html.py); the passphrase unlocks them in this browser -->
-            <span id="personalControls" class="personal-controls" style="display: none;">
-                <button type="button" id="personalUnlockBtn" class="btn-secondary" onclick="togglePersonalForm()">🔒 Unlock personal items</button>
-                <span id="personalUnlocked" style="display: none;">🔓 <span id="personalCount"></span> personal items
-                    <button type="button" class="btn-secondary" onclick="lockPersonal()">Lock</button></span>
-                <form id="personalForm" style="display: none;" onsubmit="unlockPersonal(event)">
-                    <input type="password" id="personalPassphrase" placeholder="Passphrase" autocomplete="current-password" aria-label="Passphrase">
-                    <button type="submit">Unlock</button>
-                    <span id="personalMessage" role="status"></span>
-                </form>
-            </span>
-            <button id="downloadAdded" style="display: none; padding: 2px 8px; font-size: 12px; margin-left: 6px;" onclick="downloadAddedItems()">⬇ Download added items</button>
-            <button id="clearAdded" class="btn-secondary" style="display: none; padding: 2px 8px; font-size: 12px; margin-left: 6px;" onclick="clearAddedItems()">Remove all added items</button>
-            <!-- Item art: a folder of images named after items, kept in this browser (never uploaded) -->
-            <span class="art-controls">
-                <label id="artLoadLabel" class="art-load" title="Choose a folder of images named after items (e.g. Aberrant Nail.png). They are kept in this browser, never uploaded.">
-                    🖼 Load art folder<input type="file" id="artFolderInput" accept="image/*" webkitdirectory multiple hidden>
-                </label>
-                <span id="artLoaded" style="display: none;">🖼 <span id="artCount"></span> images
-                    <button type="button" class="btn-secondary" onclick="forgetArt()">Forget</button></span>
-                <span id="artMessage" role="status"></span>
-            </span>
         </div>
         <input type="text" id="searchInput" placeholder="Search items by name or type...">
         <!-- The last items looked at (filled in by renderRecent) -->
@@ -506,15 +496,6 @@
             <div class="filter-group type-filter-list" id="magicTypeFilters"></div>
         </details>
 
-        <!-- Source Filters (filled in from the items, see renderSourceFilters) -->
-        <details class="source-filter">
-            <summary>Filter by Source:<span class="source-summary" id="sourceSummary"></span></summary>
-            <div class="source-actions">
-                <button class="btn-secondary" onclick="setAllSources(true)">Select all</button>
-                <button class="btn-secondary" onclick="setAllSources(false)">Select none</button>
-            </div>
-            <div class="source-list" id="sourceFilters"></div>
-        </details>
 
         <div style="overflow-x: auto;">
             <table id="catalogTable">
@@ -654,6 +635,77 @@
     </div>
 </div>
 <!-- Generate Queue: makes a random shop inventory, treasure pile or spellbook. Removing a result swaps in another. -->
+<div class="modal-overlay" id="settingsModal" onclick="if (clickedOutside(event, this)) closeSettings()">
+    <div class="modal-content settings-content" onclick="event.stopPropagation()">
+        <button class="modal-close" onclick="closeSettings()" aria-label="Close">✖</button>
+        <h2 style="margin-top: 0;">⚙️ Data &amp; Settings</h2>
+
+        <section class="settings-section">
+            <h3>Items</h3>
+            <p class="settings-line" id="dataStatusText"></p>
+            <label class="editor-check" id="secondaryToggle" style="display: none;" title="Items and spells from third-party books (open5eItems.csv, open5eSpells.csv)">
+                <input type="checkbox" id="includeSecondary" checked onchange="setIncludeSecondary(this.checked)"> Include secondary entries (third-party books)
+            </label>
+        </section>
+
+        <section class="settings-section">
+            <h3>Your own items</h3>
+            <label class="csv-box">Add items from CSV files (same columns as items.csv). Each row is added like a Create Item card.
+                <input type="file" id="csvFileInput" accept=".csv" multiple>
+            </label>
+            <div class="settings-buttons">
+                <button id="downloadAdded" class="btn-secondary" style="display: none;" onclick="downloadAddedItems()">⬇ Download added items</button>
+                <button id="clearAdded" class="btn-secondary" style="display: none;" onclick="clearAddedItems()">Remove all added items</button>
+            </div>
+        </section>
+
+        <section class="settings-section" id="personalSection" style="display: none;">
+            <h3>Personal items</h3>
+            <!-- Personal items are embedded encrypted (see build_single_html.py); the passphrase unlocks them in this browser -->
+            <span id="personalControls" class="personal-controls">
+                <button type="button" id="personalUnlockBtn" class="btn-secondary" onclick="togglePersonalForm()">🔒 Unlock personal items</button>
+                <span id="personalUnlocked" style="display: none;">🔓 <span id="personalCount"></span> personal items unlocked in this browser
+                    <button type="button" class="btn-secondary" onclick="lockPersonal()">Lock</button></span>
+                <form id="personalForm" style="display: none;" onsubmit="unlockPersonal(event)">
+                    <input type="password" id="personalPassphrase" placeholder="Passphrase" autocomplete="current-password" aria-label="Passphrase">
+                    <button type="submit">Unlock</button>
+                    <span id="personalMessage" role="status"></span>
+                </form>
+            </span>
+        </section>
+
+        <section class="settings-section">
+            <h3>Item art</h3>
+            <!-- Item art: a folder of images named after items, kept in this browser (never uploaded) -->
+            <span class="art-controls">
+                <label id="artLoadLabel" class="art-load" title="Choose a folder of images named after items (e.g. Aberrant Nail.png). They are kept in this browser, never uploaded.">
+                    🖼 Load art folder<input type="file" id="artFolderInput" accept="image/*" webkitdirectory multiple hidden>
+                </label>
+                <span id="artLoaded" style="display: none;">🖼 <span id="artCount"></span> images in this browser
+                    <button type="button" class="btn-secondary" onclick="forgetArt()">Forget</button></span>
+                <span id="artMessage" role="status"></span>
+            </span>
+        </section>
+
+        <section class="settings-section">
+            <h3>Sources <span class="source-summary" id="sourceSummary"></span></h3>
+            <p class="settings-note">Only items from the ticked sources show in the lists and in Generate Queue.</p>
+            <div class="source-actions">
+                <button class="btn-secondary" onclick="setAllSources(true)">Select all</button>
+                <button class="btn-secondary" onclick="setAllSources(false)">Select none</button>
+                <input type="search" id="sourceSearch" placeholder="Find a source..." aria-label="Find a source" oninput="renderSourceFilters()">
+            </div>
+            <div class="source-list" id="sourceFilters"></div>
+        </section>
+
+        <div class="settings-footer">
+            <span class="settings-saved" id="settingsSaved" role="status"></span>
+            <button class="btn-secondary" onclick="resetSettings()">Reset to defaults</button>
+            <button class="btn-add" onclick="saveSettings()">💾 Save settings</button>
+        </div>
+    </div>
+</div>
+
 <div class="modal-overlay" id="generatorModal" onclick="if (clickedOutside(event, this)) closeGenerator()">
     <div class="modal-content generator-content">
         <button class="modal-close" onclick="closeGenerator()">✖</button>
@@ -802,14 +854,14 @@
     const hasName = (item) => item && item.Name && item.Name.trim() !== '';
     const itemKey = (item) => item.Name.trim().toLowerCase() + '|' + (item.Rarity || '').trim().toLowerCase();
 
-    // Secondary items (third-party books, marked .secondary) can be left out with the "Include secondary entries" box
-    const SECONDARY_STORAGE_KEY = 'cardMaker.includeSecondary';
+    // Secondary items (third-party books, marked .secondary) can be left out with the "Include secondary entries" box,
+    // one of the Data & Settings (saved with Save settings)
+    const SECONDARY_STORAGE_KEY = 'cardMaker.includeSecondary';   // where older versions remembered it
     let includeSecondary = true;
-    try { includeSecondary = localStorage.getItem(SECONDARY_STORAGE_KEY) !== 'false'; } catch (err) { }
     function setIncludeSecondary(include) {
         includeSecondary = include;
-        try { localStorage.setItem(SECONDARY_STORAGE_KEY, String(include)); } catch (err) { }
         rebuildItems();
+        settingsChanged();
     }
 
     // --- Personal items: embedded encrypted (AES-GCM, key from the passphrase by PBKDF2; see build_single_html.py) ---
@@ -865,7 +917,7 @@
         if (form.style.display === '') document.getElementById('personalPassphrase').focus();
     }
     function updatePersonalControls() {
-        document.getElementById('personalControls').style.display = personalPayload ? '' : 'none';
+        document.getElementById('personalSection').style.display = personalPayload ? '' : 'none';
         document.getElementById('personalUnlockBtn').style.display = personalUnlocked ? 'none' : '';
         document.getElementById('personalUnlocked').style.display = personalUnlocked ? '' : 'none';
         document.getElementById('personalCount').textContent = baseItems.filter(it => it.personal).length.toLocaleString();
@@ -921,7 +973,7 @@
         document.getElementById('downloadAdded').style.display = customItems.length ? 'inline-block' : 'none';
     }
 
-    // --- Source filter ---
+    // --- Source filter (in the Data & Settings window) ---
     // The list of sources is read from the items themselves, so new books and homebrew CSVs show up without editing this file.
     const UNKNOWN_SOURCE = 'Unknown Source';
     const uncheckedSources = new Set();   // remembered by name, so ticks survive adding/removing CSV files; new sources start ticked
@@ -931,13 +983,24 @@
         const sources = (item.Source || '').split(',').map(s => s.trim()).filter(Boolean);
         return sources.length ? sources : [UNKNOWN_SOURCE];
     }
+    // An item with several sources is used if any of them is ticked (in the lists and in Generate Queue)
+    const inTickedSources = (item) => item.sources.some(s => !uncheckedSources.has(s));
+
+    // Every source with how many magic items, regular items and spells it has
+    function sourceCounts() {
+        const counts = new Map();
+        allItems.forEach(item => item.sources.forEach(s => {
+            if (!counts.has(s)) counts.set(s, { magic: 0, regular: 0, spells: 0 });
+            counts.get(s)[itemTab(item)]++;
+        }));
+        return counts;
+    }
 
     function renderSourceFilters() {
-        const counts = new Map();
-        tabItems().forEach(item => item.sources.forEach(s => counts.set(s, (counts.get(s) || 0) + 1)));
-
+        const counts = sourceCounts();
+        const find = (document.getElementById('sourceSearch').value || '').trim().toLowerCase();
         // Alphabetical, with Unknown Source last
-        const names = Array.from(counts.keys()).sort((a, b) =>
+        const names = Array.from(counts.keys()).filter(name => !find || name.toLowerCase().includes(find)).sort((a, b) =>
             (a === UNKNOWN_SOURCE) - (b === UNKNOWN_SOURCE) || a.localeCompare(b, undefined, { sensitivity: 'base' }));
 
         const list = document.getElementById('sourceFilters');
@@ -950,30 +1013,130 @@
             cb.checked = !uncheckedSources.has(name);
             cb.addEventListener('change', () => {
                 if (cb.checked) uncheckedSources.delete(name); else uncheckedSources.add(name);
-                applyFilters();
+                sourcesChanged();
             });
-            const count = document.createElement('span');
-            count.className = 'source-count';
-            count.textContent = `(${counts.get(name)})`;
-            label.append(cb, ` ${name} `, count);
+            const c = counts.get(name);
+            const kinds = document.createElement('span');
+            kinds.className = 'source-kinds';
+            kinds.textContent = [[c.magic, 'magic'], [c.regular, 'regular'], [c.spells, c.spells === 1 ? 'spell' : 'spells']]
+                .filter(([n]) => n).map(([n, word]) => `${n.toLocaleString()} ${word}`).join(' · ');
+            const text = document.createElement('span');
+            text.append(`${name} `, kinds);
+            label.append(cb, text);
             list.appendChild(label);
         });
+        updateSourceSummary();
     }
 
+    // Select all / none acts on the sources shown (all of them, or the ones the search found)
     function setAllSources(checked) {
         document.querySelectorAll('#sourceFilters input').forEach(cb => {
             cb.checked = checked;
             if (checked) uncheckedSources.delete(cb.value); else uncheckedSources.add(cb.value);
         });
+        sourcesChanged();
+    }
+
+    function sourcesChanged() {
         applyFilters();
+        settingsChanged();
     }
 
     function updateSourceSummary() {
-        const boxes = document.querySelectorAll('#sourceFilters input');
-        const ticked = Array.from(boxes).filter(cb => cb.checked).length;
-        document.getElementById('sourceSummary').textContent = ticked === boxes.length
-            ? `all ${boxes.length} sources`
-            : `${ticked} of ${boxes.length} sources`;
+        const names = Array.from(sourceCounts().keys());
+        const ticked = names.filter(name => !uncheckedSources.has(name)).length;
+        document.getElementById('sourceSummary').textContent = ticked === names.length
+            ? `(all ${names.length})` : `(${ticked} of ${names.length} ticked)`;
+        updateDataSummary(names.length, ticked);
+    }
+
+    // The line above the item list: what this tab shows, out of what the page has, and the sources in use
+    function updateDataSummary(sourceTotal, sourcesTicked) {
+        const all = tabItems(), shown = all.filter(inTickedSources).length;
+        const noun = { magic: 'magic items', regular: 'regular items', spells: 'spells' }[currentTab];
+        document.getElementById('dataSummary').textContent =
+            (shown === all.length ? `${all.length.toLocaleString()} ${noun}` : `${shown.toLocaleString()} of ${all.length.toLocaleString()} ${noun}`)
+            + ` · ${sourcesTicked === sourceTotal ? `all ${sourceTotal}` : `${sourcesTicked} of ${sourceTotal}`} sources`
+            + (includeSecondary ? '' : ' · secondary entries hidden');
+    }
+
+    // --- Data & Settings: the sources and secondary entries, saved in a cookie so they're the same next visit.
+    // (Chrome keeps no cookies for a page opened straight from a file, so they're also kept in the browser's storage.)
+    // The personal items' key and the item art stay in the browser's own storage: too private or too big for a cookie.
+    const SETTINGS_COOKIE = 'cardMakerSettings', SETTINGS_STORAGE_KEY = 'cardMaker.settings';
+    let settingsDirty = false;
+
+    // The settings in a fixed form, so two of them can be compared
+    function normalizeSettings(settings) {
+        return {
+            v: 1,
+            uncheckedSources: [...((settings && settings.uncheckedSources) || [])].sort(),
+            includeSecondary: !settings || settings.includeSecondary !== false,
+        };
+    }
+    const currentSettings = () => normalizeSettings({ uncheckedSources: [...uncheckedSources], includeSecondary });
+
+    function readSavedSettings() {
+        const cookie = document.cookie.split('; ').find(c => c.startsWith(SETTINGS_COOKIE + '='));
+        try { if (cookie) return JSON.parse(decodeURIComponent(cookie.slice(SETTINGS_COOKIE.length + 1))); } catch (err) { }
+        try {
+            const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
+            if (stored) return JSON.parse(stored);
+            // Before settings were saved together, "Include secondary entries" was remembered on its own
+            if (localStorage.getItem(SECONDARY_STORAGE_KEY) === 'false') return { includeSecondary: false };
+        } catch (err) { }
+        return null;
+    }
+    function applySettings(settings) {
+        const s = normalizeSettings(settings);
+        uncheckedSources.clear();
+        s.uncheckedSources.forEach(name => uncheckedSources.add(name));
+        includeSecondary = s.includeSecondary;
+    }
+
+    function saveSettings() {
+        const json = JSON.stringify(currentSettings());
+        const value = encodeURIComponent(json);
+        let savedCookie = false, savedStorage = false;
+        if (value.length < 3800) {   // a cookie holds about 4 KB
+            document.cookie = `${SETTINGS_COOKIE}=${value}; max-age=${60 * 60 * 24 * 365 * 2}; path=/; SameSite=Lax`;
+            savedCookie = document.cookie.includes(SETTINGS_COOKIE + '=');
+        }
+        try { localStorage.setItem(SETTINGS_STORAGE_KEY, json); savedStorage = true; } catch (err) { }
+        settingsChanged();
+        showSettingsState(savedCookie || savedStorage ? 'Saved. These settings will be used next time too.' : "Couldn't save the settings in this browser.");
+    }
+
+    // Back to every source ticked and secondary entries shown (Save settings keeps it that way)
+    function resetSettings() {
+        applySettings(null);
+        rebuildItems();
+        renderSourceFilters();
+        settingsChanged();
+    }
+
+    function settingsChanged() {
+        settingsDirty = JSON.stringify(currentSettings()) !== JSON.stringify(normalizeSettings(readSavedSettings()));
+        showSettingsState(settingsDirty ? 'Unsaved changes. Save settings keeps them for next time.' : '');
+    }
+    function showSettingsState(text) {
+        const el = document.getElementById('settingsSaved');
+        el.textContent = text;
+        el.classList.toggle('unsaved', settingsDirty);
+        const button = document.getElementById('settingsBtn');
+        button.classList.toggle('unsaved', settingsDirty);
+        button.title = settingsDirty ? 'Data & Settings (unsaved changes)' : 'Data & Settings';
+    }
+
+    function openSettings() {
+        document.getElementById('sourceSearch').value = '';
+        renderSourceFilters();
+        updateDataStatus();
+        settingsChanged();
+        document.getElementById('settingsModal').style.display = 'flex';
+    }
+    function closeSettings() {
+        document.getElementById('settingsModal').style.display = 'none';
     }
 
     // --- 1. Event Listeners ---
@@ -1312,7 +1475,7 @@
             }
 
             // An item with several sources is shown if any of them is ticked
-            const matchesSource = item.sources.some(s => !uncheckedSources.has(s));
+            const matchesSource = inTickedSources(item);
 
             return matchesText && matchesGroup && matchesSource;
         });
@@ -2251,6 +2414,7 @@
         const isOpen = (id) => document.getElementById(id).style.display === 'flex';
         if (isOpen('artViewer')) closeArtViewer();
         else if (isOpen('itemModal')) closeModal(null, true);
+        else if (isOpen('settingsModal')) closeSettings();
         else if (isOpen('generatorModal')) closeGenerator();
         else if (isOpen('editorModal')) closeEditor();
         else openSheet(null);
@@ -2260,6 +2424,8 @@
     // Each generator turns the form into a "picker": a function that returns one more random item that isn't in the
     // given set of keys yet (or null when nothing is left). The list is built by calling it repeatedly, and removing
     // an entry calls it once more to fill the gap. Removed entries are remembered so they don't come back.
+    // The items the generators draw from: the ones in the ticked sources (Data & Settings), like the lists
+    const genItems = () => allItems.filter(inTickedSources);
     let genTab = 'shop', genPicker = null, genList = [], genRemoved = new Set();
     let genSelected = null;   // index in genList of the entry shown in the preview
     // For each entry of genList: how many of it (gems in a hoard), and its own way of being replaced (coins, gems)
@@ -2395,10 +2561,10 @@
         const favored = (pattern) => (item) => !!pattern && pattern.test(item.Name || '');
         const favorMagic = favored(shop.favor && shop.favor.magic), favorRegular = favored(shop.favor && shop.favor.regular);
         // A favored name never brings in a potion or scroll the shop doesn't sell (Potion of Stone Giant Strength at a curio stall)
-        const magicPool = allItems.filter(item => itemTab(item) === 'magic'
+        const magicPool = genItems().filter(item => itemTab(item) === 'magic'
             && (shop.magic(item) || (favorMagic(item) && !/^(potion|scroll)/i.test(item.Type || ''))));
         // Regular items without a price (modern firearms, ...) aren't sold
-        const regularPool = allItems.filter(item => isMundane(item) && (shop.regular(item) || favorRegular(item)) && costInGp(item) <= wealth.maxCost);
+        const regularPool = genItems().filter(item => isMundane(item) && (shop.regular(item) || favorRegular(item)) && costInGp(item) <= wealth.maxCost);
         // prefer: the shop's speciality (a pattern for the Type, or a test of the item), four times as likely as an ordinary magic item
         const prefers = typeof shop.prefer === 'function' ? shop.prefer : (item) => !!shop.prefer && shop.prefer.test(item.Type || '');
         const magicWeight = (item) => prefers(item) ? 4 : favorMagic(item) ? 2 : 1;
@@ -2430,9 +2596,9 @@
         const tier = LOOT_TIERS[document.getElementById('genLootTier').value];
         const kind = LOOT_KINDS[document.getElementById('genLootKind').value];
         const mixed = document.getElementById('genLootMix').value === 'mixed';
-        const magicPool = allItems.filter(item => itemTab(item) === 'magic' && kind(item));
+        const magicPool = genItems().filter(item => itemTab(item) === 'magic' && kind(item));
         // (no horses or ships in a loot pile; gems and art come with a treasure hoard instead)
-        const regularPool = mixed ? allItems.filter(item => isMundane(item) && kind(item)
+        const regularPool = mixed ? genItems().filter(item => isMundane(item) && kind(item)
             && !['Mounts & Vehicles', 'Gemstones', 'Art Objects'].includes(itemCategory(item))) : [];
         return (used) => {
             const magicFirst = !mixed || Math.random() < 0.7;
@@ -2448,7 +2614,7 @@
         const min = Number(document.getElementById('genSpellMin').value), max = Number(document.getElementById('genSpellMax').value);
         const school = document.getElementById('genSpellSchool').value;
         const allowUA = document.getElementById('genSpellUA').checked;
-        const pool = allItems.filter(item => isSpell(item)
+        const pool = genItems().filter(item => isSpell(item)
             && (!cls || spellClasses(item).includes(cls))
             && spellLevel(item) !== null && spellLevel(item) >= Math.min(min, max) && spellLevel(item) <= Math.max(min, max)
             && (!school || spellSchool(item) === school)
@@ -2508,7 +2674,7 @@
         }
         return [...counts].map(([item, n]) => ({ item, count: n }));
     }
-    const valuablesLike = (type) => allItems.filter(item => isMundane(item) && (item.Type || '') === type);
+    const valuablesLike = (type) => genItems().filter(item => isMundane(item) && (item.Type || '') === type);
 
     // --- Spell scrolls (DMG spell scroll table; price = Xanathar's cost to scribe one) ---
     const SCROLLS = [   // by spell level: rarity, save DC, attack bonus, price
@@ -2547,7 +2713,7 @@
 
     function openGenerator() {
         // The spellbook's choices come from the spells themselves (classes, schools)
-        const spells = allItems.filter(isSpell);
+        const spells = genItems().filter(isSpell);
         const fill = (id, options, keep) => {
             const select = document.getElementById(id), previous = select.value;
             select.innerHTML = options.map(([value, label]) => `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`).join('');
@@ -2800,6 +2966,7 @@
         }
     });
     try { personalPayload = JSON.parse(document.getElementById('embeddedPersonal').textContent || 'null'); } catch (err) { }
+    applySettings(readSavedSettings());   // the sources and secondary entries saved in Data & Settings
     rebuildItems();
     setTab('magic');
     // Personal items this browser has unlocked before open by themselves (a rebuild with a new passphrase needs it again)
