@@ -52,6 +52,29 @@ def read_csv_text(path):
         return raw.decode("cp1252", errors="replace"), "Windows-1252"
 
 
+def with_prices(csv_text, path):
+    """Adds a Price column to a magic items CSV from its price file (see price_items.py: magicPrices.csv, or
+    griffonsPrices.csv for the personal items); returns (text, how many got a price). Other CSVs come back unchanged."""
+    sys.path.insert(0, HERE)   # price_items.py sits next to this script (and -I leaves the script's folder off the path)
+    import price_items
+    price_file = price_items.PRICE_FILES.get(os.path.basename(path))
+    if not price_file or not os.path.exists(os.path.join(HERE, price_file)):
+        return csv_text, 0
+    ratings = {price_items.item_key(r["Name"], r["Rarity"]): r for r in price_items.read(os.path.join(HERE, price_file))}
+    reader = csv.DictReader(io.StringIO(csv_text, newline=""))
+    columns = list(reader.fieldnames) + ([] if "Price" in reader.fieldnames else ["Price"])
+    out, priced = io.StringIO(newline=""), 0
+    writer = csv.DictWriter(out, fieldnames=columns, lineterminator="\n")
+    writer.writeheader()
+    for row in reader:
+        rated = ratings.get(price_items.item_key(row.get("Name") or "", row.get("Rarity") or ""))
+        if rated and not (row.get("Price") or "").strip():
+            row["Price"] = price_items.price_text(row["Rarity"], rated["Rating"], rated.get("Price") or "")
+        priced += bool((row.get("Price") or "").strip())
+        writer.writerow(row)
+    return out.getvalue(), priced
+
+
 def check_csv(path):
     """Reads a CSV and checks it has items; returns (text, encoding, item count)"""
     csv_text, encoding = read_csv_text(path)
@@ -145,6 +168,9 @@ def main():
     results = []
     for element_id, path, label in embeds:
         csv_text, encoding, item_count = check_csv(path)
+        csv_text, priced = with_prices(csv_text, path)
+        if priced:
+            label += f" ({priced} priced)"
         pattern = placeholder(element_id)
         if not pattern.search(output):
             sys.exit(f'Error: could not find <script id="{element_id}" ...> in the template. Is it the updated template.html?')
@@ -161,8 +187,10 @@ def main():
         passphrase = ask_passphrase()
         if passphrase:
             csv_text, encoding, item_count = check_csv(args.personal_csv)
+            csv_text, priced = with_prices(csv_text, args.personal_csv)
+            personal_text = csv_text
             personal = encrypt_personal(csv_text, passphrase, item_count)
-            personal_note = f"Embedded {item_count} personal items from {args.personal_csv}, encrypted."
+            personal_note = f"Embedded {item_count} personal items ({priced} priced) from {args.personal_csv}, encrypted."
     if personal is None and os.path.exists(args.out):
         with open(args.out, "r", encoding="utf-8") as f:
             previous = personal_pattern.search(f.read())
@@ -189,7 +217,7 @@ def main():
         print(f"Embedded {item_count} {label} from {path} (read as {encoding}).")
     if passphrase and personal is not None:
         embedded = json.loads(personal_pattern.search(written).group(2))
-        if decrypt_personal(embedded, passphrase) != check_csv(args.personal_csv)[0]:
+        if decrypt_personal(embedded, passphrase) != personal_text:
             sys.exit("Error: the encrypted personal items don't decrypt back to the CSV. The output should not be used.")
     if personal_note:
         print(personal_note)

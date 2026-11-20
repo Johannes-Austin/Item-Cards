@@ -6,3 +6,4 @@ __pycache__/
 # The Griffon's Saddlebag items and art (the creator's paid content: personal use only, never commit)
 griffonsSaddlebag.csv
 GriffonsArt/
+griffonsPrices.csv

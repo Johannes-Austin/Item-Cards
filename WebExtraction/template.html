@@ -19,6 +19,14 @@
 
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { text-align: left; padding: 10px; border-bottom: 1px solid #ddd; }
+        /* Click a column heading to sort by it (again for the other way, a third time for the normal order) */
+        th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+        th.sortable:hover { color: #1971c2; }
+        th.sortable[data-dir="asc"]::after { content: ' ▲'; font-size: 0.75em; }
+        th.sortable[data-dir="desc"]::after { content: ' ▼'; font-size: 0.75em; }
+        /* The Price column only shows on the Magic Items tab */
+        #catalogTable .col-price { display: none; white-space: nowrap; }
+        #catalogTable.show-price .col-price { display: table-cell; }
         tr.item-row { cursor: pointer; transition: background 0.2s; }
         tr.item-row:hover { background-color: #e9ecef; }
         tr.item-row.selected { background-color: #cfe2ff; }
@@ -55,6 +63,10 @@
         .dual-range input:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px rgba(13,110,253,0.35); }
         .dual-range-ticks { display: flex; justify-content: space-between; margin: -2px 6px 4px; font-size: 11px; color: #777; }
         .dual-range-ticks span { width: 8px; text-align: center; }
+        .price-ticks { margin: -2px 10px 4px; }
+        .price-filter-body { margin-top: 4px; }
+        .price-ticks span { width: 0; white-space: nowrap; display: flex; justify-content: center; font-size: 10px; }
+        @media (max-width: 520px) { .price-ticks span:nth-child(even) { visibility: hidden; } }
         /* Toggle pills: a checkbox styled as a button-like chip */
         .pill-group { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; min-width: 0; }
         .pill { position: relative; cursor: pointer; }
@@ -224,6 +236,8 @@
         .gen-item.swapped { animation: gen-flash 1.2s ease-out; }
         @keyframes gen-flash { from { background: #d1e7dd; } to { background: transparent; } }
         .gen-note { font-size: 12px; color: #a15c00; }
+        .gen-total { font-size: 13px; font-weight: bold; color: #7a5a00; }
+        .gen-total:empty { display: none; }
         .gen-note:empty { display: none; }
         .gen-footer { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
         #itemModal { z-index: 1100; }   /* item details can open on top of the generator */
@@ -490,6 +504,23 @@
             <label><input type="checkbox" value="other" checked> Other / Varies</label>
         </div>
 
+        <!-- Price range (Magic Items tab): two thumbs on a scale of round prices, like the spell level slider.
+             The whole range shows every item; narrowed, items with no price drop out and Priceless counts as the top. -->
+        <details class="source-filter" id="priceFilter">
+            <summary>Filter by Price:<span class="source-summary" id="priceLabel"></span></summary>
+            <div class="price-filter-body">
+            <div class="spell-filter-row">
+                <button class="link-button" id="resetPriceFilter" onclick="resetPriceFilter()">Any price</button>
+            </div>
+            <div class="dual-range">
+                <div class="dual-range-fill" id="priceFill"></div>
+                <input type="range" id="priceMin" min="0" max="12" step="1" value="0" aria-label="Lowest price">
+                <input type="range" id="priceMax" min="0" max="12" step="1" value="12" aria-label="Highest price">
+            </div>
+            <div class="dual-range-ticks price-ticks" id="priceTicks"></div>
+            </div>
+        </details>
+
         <!-- Type Filters (Magic Items tab), folded away like the source filter; filled in by renderCheckboxFilters -->
         <details class="source-filter" id="magicTypeDetails">
             <summary>Filter by Type:<span class="source-summary" id="magicTypeSummary"></span></summary>
@@ -499,7 +530,7 @@
 
         <div style="overflow-x: auto;">
             <table id="catalogTable">
-                <thead><tr><th>Name</th><th id="secondColumnHeader">Rarity</th><th id="thirdColumnHeader">Type</th><th>Action</th></tr></thead>
+                <thead><tr><th class="sortable" data-sort="name" onclick="sortCatalog('name')">Name</th><th class="sortable" data-sort="second" id="secondColumnHeader" onclick="sortCatalog('second')">Rarity</th><th class="sortable" data-sort="type" id="thirdColumnHeader" onclick="sortCatalog('type')">Type</th><th class="sortable col-price" data-sort="price" onclick="sortCatalog('price')" title="Magic item prices, for the DM (never printed on a card)">Price</th><th>Action</th></tr></thead>
                 <tbody id="catalogBody"></tbody>
             </table>
             <div class="catalog-empty" id="catalogEmpty"></div>
@@ -531,7 +562,7 @@
     <div class="modal-content" onclick="event.stopPropagation()">
         <button class="modal-close" onclick="closeModal(null, true)">✖</button>
         <h2 id="modalName" style="font-family: 'Cinzel', serif; margin-top: 0;"></h2>
-        <div><span class="modal-tag" id="modalRarity"></span><span class="modal-tag" id="modalType"></span><span class="modal-tag" id="modalAttunement"></span></div>
+        <div><span class="modal-tag" id="modalRarity"></span><span class="modal-tag" id="modalType"></span><span class="modal-tag" id="modalAttunement"></span><span class="modal-tag" id="modalPrice"></span></div>
         <div id="modalArtBox">
             <img id="modalArt" alt="" title="Show full screen" onclick="showArtFullScreen()">
             <button type="button" onclick="showArtFullScreen()">⛶ Show to players</button>
@@ -798,6 +829,7 @@
 
         <div class="gen-results" id="genResults">
             <div class="gen-results-head"><strong id="genResultsTitle"></strong><span class="gen-hint">↻ swaps an entry for a new one · ✕ removes it</span></div>
+            <div class="gen-total" id="genTotal" title="Regular items at their cost and magic items at their price, for the DM (never printed on a card)"></div>
             <div class="gen-list" id="genList"></div>
             <div class="gen-note" id="genNote"></div>
             <div class="gen-footer">
@@ -850,7 +882,9 @@
     // Built-in items come embedded in this file (see build_single_html.py). Users make their own with Create Item / Customize Card,
     // or load them from CSV files, which works like Create Item for each row (customItems, saved in this browser).
     let baseItems = [], customItems = [];
-    const ITEM_COLUMNS = ['Name', 'Rarity', 'Attunement', 'Type', 'Source', 'Description', 'URL', 'Notes'];
+    // Price: a magic item's price ("1,400 gp", "Priceless"); the build fills it in from magicPrices.csv. A regular item's
+    // cost is in its Attunement column instead.
+    const ITEM_COLUMNS = ['Name', 'Rarity', 'Attunement', 'Type', 'Source', 'Description', 'URL', 'Notes', 'Price'];
     const hasName = (item) => item && item.Name && item.Name.trim() !== '';
     const itemKey = (item) => item.Name.trim().toLowerCase() + '|' + (item.Rarity || '').trim().toLowerCase();
 
@@ -1241,10 +1275,14 @@
         });
         document.getElementById('rarityFilters').style.display = tab === 'magic' ? '' : 'none';
         document.getElementById('magicTypeDetails').style.display = tab === 'magic' ? '' : 'none';
+        document.getElementById('priceFilter').style.display = tab === 'magic' ? '' : 'none';
         document.getElementById('categoryFilters').style.display = tab === 'regular' ? '' : 'none';
         document.getElementById('spellFilters').style.display = tab === 'spells' ? '' : 'none';
         document.getElementById('secondColumnHeader').textContent = { magic: 'Rarity', regular: 'Cost', spells: 'Level' }[tab];
         document.getElementById('thirdColumnHeader').textContent = tab === 'spells' ? 'School' : 'Type';
+        document.getElementById('catalogTable').classList.toggle('show-price', tab === 'magic');
+        if (catalogSort.key === 'price' && tab !== 'magic') catalogSort = { key: null, dir: null };
+        showSortArrows();
         document.getElementById('searchInput').placeholder = tab === 'spells' ? 'Search spells by name, school or class...' : 'Search items by name or type...';
         if (tab === 'spells') renderSpellFilters();
         renderSourceFilters();
@@ -1400,6 +1438,50 @@
     [levelMin, levelMax].forEach(input => input.addEventListener('input', () => { updateLevelSlider(input); applyFilters(); }));
     document.querySelectorAll('[data-spell-flag]').forEach(select => select.addEventListener('change', applyFilters));
 
+    // --- Magic item price range: the slider's stops, cheapest to "200,000+ gp" (which takes in Priceless) ---
+    const PRICE_STOPS = [0, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 200000];
+    const priceMin = document.getElementById('priceMin'), priceMax = document.getElementById('priceMax');
+    const priceTop = PRICE_STOPS.length - 1;
+    const shortGp = (gp) => gp >= 1000 ? `${gp / 1000}k` : String(gp);
+    document.getElementById('priceTicks').innerHTML = PRICE_STOPS.map((gp, i) => `<span>${shortGp(gp)}${i === priceTop ? '+' : ''}</span>`).join('');
+    function updatePriceSlider(moved) {
+        if (Number(priceMin.value) > Number(priceMax.value)) {
+            if (moved === priceMax) priceMax.value = priceMin.value; else priceMin.value = priceMax.value;
+        }
+        const min = Number(priceMin.value), max = Number(priceMax.value);
+        const fill = document.getElementById('priceFill');
+        fill.style.left = (min / priceTop * 100) + '%';
+        fill.style.width = ((max - min) / priceTop * 100) + '%';
+        priceMin.style.zIndex = min >= priceTop / 2 ? 3 : 2;
+        priceMax.style.zIndex = min >= priceTop / 2 ? 2 : 3;
+        const gp = (i) => `${PRICE_STOPS[i].toLocaleString()} gp`;
+        document.getElementById('priceLabel').textContent = min === 0 && max === priceTop ? 'Any price'
+            : max === priceTop ? `${gp(min)} and up (Priceless too)`
+            : min === max ? `About ${gp(min)}` : min === 0 ? `Up to ${gp(max)}` : `${gp(min)} – ${gp(max)}`;
+        document.getElementById('resetPriceFilter').style.visibility = min === 0 && max === priceTop ? 'hidden' : 'visible';
+    }
+    function priceInRange(item) {
+        const min = Number(priceMin.value), max = Number(priceMax.value);
+        if (min === 0 && max === priceTop) return true;
+        const value = priceValue(magicPrice(item));
+        if (Number.isNaN(value)) return false;
+        // Both thumbs on one stop: prices that round to it (halfway to the stops either side, on a log scale)
+        if (min === max) {
+            const low = min ? Math.sqrt(PRICE_STOPS[min] * (PRICE_STOPS[min - 1] || PRICE_STOPS[min] / 2)) : 0;
+            const high = max < priceTop ? Math.sqrt(PRICE_STOPS[max] * PRICE_STOPS[max + 1]) : Infinity;
+            return value >= low && value < high;
+        }
+        return value >= PRICE_STOPS[min] && (max === priceTop || value <= PRICE_STOPS[max]);
+    }
+    function resetPriceFilter() {
+        priceMin.value = 0;
+        priceMax.value = priceTop;
+        updatePriceSlider();
+        applyFilters();
+    }
+    [priceMin, priceMax].forEach(input => input.addEventListener('input', () => { updatePriceSlider(input); applyFilters(); }));
+    updatePriceSlider();
+
     function spellMatchesFilters(item) {
         const level = spellLevel(item);
         const min = Number(levelMin.value), max = Number(levelMax.value);
@@ -1471,7 +1553,7 @@
                 const itemRarity = (item.Rarity || 'common').toLowerCase().trim();
                 // Anything that isn't one of the six standard rarities (unique, varies, etc.) goes under "Other"
                 const rarityBucket = STANDARD_RARITIES.includes(itemRarity) ? itemRarity : 'other';
-                matchesGroup = checkedRarities.includes(rarityBucket) && !uncheckedMagicTypes.has(magicType(item));
+                matchesGroup = checkedRarities.includes(rarityBucket) && !uncheckedMagicTypes.has(magicType(item)) && priceInRange(item);
             }
 
             // An item with several sources is shown if any of them is ticked
@@ -1492,14 +1574,60 @@
         empty.style.display = empty.textContent ? 'block' : 'none';
     }
 
+    // --- Sorting the list by a column ---
+    // "1,400 gp" -> 1400 (any coin), "Priceless" sorts above everything, no price at all sorts last either way
+    function priceValue(text) {
+        if (/priceless/i.test(text || '')) return Infinity;
+        const match = (text || '').replace(/,/g, '').match(/([\d.]+)\s*(cp|sp|ep|gp|pp)/i);
+        return match ? Number(match[1]) * COIN_GP[match[2].toLowerCase()] : NaN;
+    }
+    const RARITY_ORDER = ['common', 'uncommon', 'rare', 'very rare', 'legendary', 'artifact'];
+    function sortValue(item, key) {
+        if (key === 'name') return (item.Name || '').toLowerCase();
+        if (key === 'type') return (isSpell(item) ? spellSchool(item) : item.Type || '').toLowerCase();
+        if (key === 'price') return priceValue(magicPrice(item));
+        if (isSpell(item)) return spellLevel(item) ?? NaN;
+        if (isMundane(item)) return costInGp(item);
+        const rarity = (item.Rarity || '').toLowerCase().trim();   // by rarity, then by price within it
+        const rank = RARITY_ORDER.indexOf(rarity);
+        return (rank < 0 ? RARITY_ORDER.length : rank) * 1e9 + (priceValue(magicPrice(item)) || 0) / 1e3;
+    }
+    let catalogSort = { key: null, dir: null };
+    try { catalogSort = JSON.parse(localStorage.getItem('cardMaker.catalogSort')) || catalogSort; } catch (err) { }
+    function sortCatalog(key) {
+        // Name, Type and School start A-Z; Price, Rarity, Cost and Level start low to high; a third click goes back
+        catalogSort = catalogSort.key !== key ? { key, dir: 'asc' } : catalogSort.dir === 'asc' ? { key, dir: 'desc' } : { key: null, dir: null };
+        try { localStorage.setItem('cardMaker.catalogSort', JSON.stringify(catalogSort)); } catch (err) { }
+        showSortArrows();
+        applyFilters();
+    }
+    function showSortArrows() {
+        document.querySelectorAll('#catalogTable th.sortable').forEach(th => {
+            if (th.dataset.sort === catalogSort.key) th.dataset.dir = catalogSort.dir; else delete th.dataset.dir;
+        });
+    }
+    function sortedForCatalog(items) {
+        const { key, dir } = catalogSort;
+        if (!key) return items;
+        const sign = dir === 'desc' ? -1 : 1;
+        return items.map(item => ({ item, value: sortValue(item, key) })).sort((a, b) => {
+            const aMissing = typeof a.value === 'number' && isNaN(a.value), bMissing = typeof b.value === 'number' && isNaN(b.value);
+            if (aMissing || bMissing) return aMissing - bMissing;   // no price/cost/level: always at the end
+            const order = typeof a.value === 'string' ? a.value.localeCompare(b.value) : (a.value > b.value) - (a.value < b.value);
+            return sign * order || a.item.Name.localeCompare(b.item.Name);
+        }).map(entry => entry.item);
+    }
+
     function renderCatalog(items) {
         const tbody = document.getElementById('catalogBody');
+        items = sortedForCatalog(items);
         tbody.innerHTML = items.map(item => `
             <tr class="item-row${item.id === selectedId ? ' selected' : ''}" data-id="${item.id}" onclick="selectItem(${item.id})">
                 <td><strong>${item.Name}</strong>${item.edited ? '<span class="custom-badge edited">edited</span>' : item.custom ? '<span class="custom-badge">custom</span>' : ''}<div class="mobile-type">${isSpell(item) ? spellSchoolHtml(item) : item.Type || ''}</div></td>
                 ${isSpell(item) ? `<td>${LEVEL_NAMES[spellLevel(item)] ?? '—'}</td>`
                   : isMundane(item) ? `<td>${escapeHtml(item.Attunement || '—')}</td>` : `<td style="text-transform: capitalize;">${item.Rarity}</td>`}
                 <td>${isSpell(item) ? spellSchoolHtml(item) : item.Type}</td>
+                <td class="col-price">${escapeHtml(magicPrice(item)) || '—'}</td>
                 <td><button class="btn-add" onclick="event.stopPropagation(); addToQueue(${item.id})">+ Add</button></td>
             </tr>
         `).join('');
@@ -1779,6 +1907,10 @@
         refreshCards();
     });
 
+    // A magic item's price ("1,400 gp"), or '' for regular items (their cost is shown as their attunement line) and
+    // spells. Only the DM sees it (item details and the generator's list); it is never printed on a card.
+    const magicPrice = (item) => isSpell(item) || isMundane(item) ? '' : (item.Price || '').trim();
+
     // Rebuilds the cards already shown or queued (after an option that changes them, like the charge boxes)
     function refreshCards() {
         printQueue.forEach(entry => { entry.specs = getCardSpecs(entry.item); });
@@ -1913,6 +2045,9 @@
         document.getElementById('modalType').innerText = item.Type;
         document.getElementById('modalAttunement').innerText = isSpell(item) ? (item.Classes || '')
             : isMundane(item) ? (item.Attunement ? `Cost: ${item.Attunement}` : '') : formatAttunement(item.Attunement);
+        const price = magicPrice(item), priceTag = document.getElementById('modalPrice');
+        priceTag.innerText = price ? `Price: ${price}` : '';
+        priceTag.style.display = price ? '' : 'none';
         document.getElementById('modalDesc').innerHTML = renderDescription(cardDescription(item));
 
         let sourceHtml = item.Source || 'Unknown';
@@ -2207,7 +2342,7 @@
         // The card's kind: an existing card keeps its own; a new one starts as the kind of the list tab it was made from
         const kind = item ? EDITOR_KINDS[itemTab(item)] : EDITOR_KINDS[currentTab];
         setRarityField(item && kind === 'magic' ? item.Rarity : 'common');
-        document.getElementById('edCost').value = item && isMundane(item) ? (item.Attunement || '') : '';
+        document.getElementById('edCost').value = !item ? '' : isMundane(item) ? (item.Attunement || '') : (item.Price || '');
         const spell = item && isSpell(item) ? item : {};
         document.getElementById('edLevel').value = String(spellLevel(spell) ?? 1);
         document.getElementById('edSchool').value = spell.School ? spellSchool(spell) : '';
@@ -2290,7 +2425,7 @@
         show('edRarityLabel', editorKind === 'magic');
         show('edTypeLabel', editorKind !== 'spell');   // a spell's type line is made from its level and school
         show('edAttuneRow', editorKind === 'magic');
-        show('edCostRow', editorKind === 'regular');
+        show('edCostRow', editorKind !== 'spell');   // a regular item's cost, or a magic item's price
         show('edSpellFields', editorKind === 'spell');
     }
 
@@ -2318,7 +2453,8 @@
             Source: document.getElementById('edSource').value.trim(),
             Description: document.getElementById('edDesc').value.replace(/\s+$/, ''),
             URL: editorBaseUrl,
-            Notes: ''
+            Notes: '',
+            Price: rarity === 'spell' || rarity === 'mundane' ? '' : document.getElementById('edCost').value.trim()
         };
         if (rarity === 'spell') {
             const value = (id) => document.getElementById(id).value.trim();
@@ -2688,8 +2824,8 @@
         const levelText = level ? `${LEVEL_NAMES[level]}-level` : 'Cantrip';
         return {
             Name: `Spell Scroll: ${spell.Name}`, Rarity: rarity, Attunement: '', Type: `Scroll (${levelText} ${spellSchool(spell)})`.replace('  ', ' '),
-            Source: spell.Source, URL: spell.URL, Notes: '', generated: true, scrollOf: itemKey(spell),
-            Description: [`**Save DC:** ${dc} · **Attack bonus:** +${attack} · **Price:** ${price}`,
+            Source: spell.Source, URL: spell.URL, Notes: '', Price: price, generated: true, scrollOf: itemKey(spell),
+            Description: [`**Save DC:** ${dc} · **Attack bonus:** +${attack}`,
                 `*Reading the scroll casts the spell without material components; then the scroll crumbles to dust. If ${spell.Name} isn't on your class's spell list, you can't read it${level ? `, and a spell above the level you can cast needs a DC ${10 + level} ability check with your spellcasting ability` : ''}.*`,
                 cardDescription(spell)].join('\n'),
         };
@@ -2859,7 +2995,28 @@
         if (genAsScrolls && isSpell(item)) return `${titleCase(makeScroll(item).Rarity)} spell scroll · ${spellLevel(item) ? LEVEL_NAMES[spellLevel(item)] + ' level' : 'Cantrip'}`;
         if (isSpell(item)) return `${spellLevel(item) ? LEVEL_NAMES[spellLevel(item)] + ' level' : 'Cantrip'} · ${spellSchool(item)}`;
         if (isMundane(item)) return [item.Attunement, item.Type].filter(Boolean).join(' · ');
-        return [titleCase(item.Rarity || ''), item.Type].filter(Boolean).join(' · ');
+        return [titleCase(item.Rarity || ''), item.Type, magicPrice(item)].filter(Boolean).join(' · ');
+    }
+
+    // What a shop's stock or a loot pile is worth, for the DM: regular items at their cost, magic items at their price,
+    // coins at their worth, each times how many there are. Priceless items and items with no price are named, not added.
+    function generatedTotal() {
+        let total = 0, priceless = 0, unpriced = 0;
+        genList.forEach((item, i) => {
+            const value = isMundane(item) ? costInGp(item) : priceValue(magicPrice(item));
+            if (value === Infinity) priceless++;
+            else if (Number.isNaN(value)) unpriced++;
+            else total += value * (genCounts[i] || 1);
+        });
+        if (!genList.length) return '';
+        const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+        const extras = [priceless && `${plural(priceless, 'priceless item')}`, unpriced && `${plural(unpriced, 'item')} with no price`].filter(Boolean);
+        return `Estimated value: ${formatGp(total)}` + (extras.length ? ` (plus ${extras.join(' and ')})` : '');
+    }
+    // 12345.6 -> "12,346 gp"; under 1 gp in silver or copper
+    function formatGp(gp) {
+        if (gp > 0 && gp < 1) return Math.round(gp * 100) % 10 ? `${Math.round(gp * 100)} cp` : `${Math.round(gp * 10)} sp`;
+        return `${Math.round(gp).toLocaleString()} gp`;
     }
 
     function renderGeneratorList(swappedIndex = null) {
@@ -2869,6 +3026,7 @@
         const noun = genTab === 'spellbook' ? (genAsScrolls ? 'scroll' : 'spell') : 'item';
         document.getElementById('genResultsTitle').textContent = `${genList.length} ${noun}${genList.length === 1 ? '' : 's'}`
             + (cards > genList.length ? ` (${cards} cards)` : '');
+        document.getElementById('genTotal').textContent = genTab === 'spellbook' ? '' : generatedTotal();
         document.getElementById('genList').innerHTML = genList.map((item, i) => `
             <div class="gen-item${i === swappedIndex ? ' swapped' : ''}">
                 <div class="gen-item-text" title="Show its card" onclick="previewGenerated(${i}, true)">

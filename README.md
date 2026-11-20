@@ -88,6 +88,18 @@ To refresh it:
 
 To see the art in the card maker, click **🖼 Load art folder** (in **⚙️ Data & Settings**) and choose the `GriffonsArt` folder. See "Item art" below.
 
+### Magic item prices
+Every magic item has a price, for the DM only: it shows in the Magic Items list's Price column, the item's details window and the shop/loot generator's list, never on a printed card. Click a column heading in the list (Name, Rarity/Cost/Level, Type, Price) to sort by it; click again for the other way, and a third time for the normal order. The Price slider above the list narrows it to a price range (drag both ends to the same stop for items around that price). The shop and loot generators show the estimated value of everything they rolled: regular items at their cost, magic items at their price, coins at their worth. A custom item you make in the editor gets whatever price you type in its Cost box.
+
+The prices come from a power rating (1-10 within the item's rarity, with a one-line reason) kept in `magicPrices.csv` (for `items.csv` and `open5eItems.csv`) and `griffonsPrices.csv` (for the Griffon's Saddlebag items; git-ignored and encrypted into the page with them). `price_items.py` turns a rating into a price within the DMG's range for the rarity; a rating below 1 or above 10 carries on into the next rarity's range (one-use items are rated low). A Price column in the file overrides the formula (spell scrolls use Xanathar's scribing costs). The build adds the prices to the embedded items.
+
+- `python price_items.py check`: which items have no rating yet (run after a scraper adds items)
+- `python price_items.py todo items.csv 50`: the next unrated items, to rate
+- `python price_items.py add magicPrices.csv < ratings.txt`: add ratings, one per line: `Name | Rarity | Rating | Reason [| Price]`
+- `python price_items.py compare 16 5`: random groups of similarly priced items, to check they're fair against each other
+- `python price_items.py rerate < changes.txt`: change ratings (`Name | Rarity | Rating`), keeping the reasons
+- `python price_items.py prices`: the rating-to-price table
+
 ### 3. Build the single HTML file
 **`BuildSingleHtml.BAT`** runs `build_single_html.py`.
 
