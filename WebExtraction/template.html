@@ -775,7 +775,7 @@
                     <option value="modest">Modest</option>
                     <option value="comfortable" selected>Comfortable</option>
                     <option value="wealthy">Wealthy</option>
-                    <option value="aristocratic">Aristocratic (rare and very rare magic)</option>
+                    <option value="aristocratic">Aristocratic (magic worth 500–50,000 gp)</option>
                 </select>
             </label>
         </div>
@@ -2587,13 +2587,33 @@
         return list[list.length - 1];
     }
 
-    // A random magic item from the pool, its rarity picked by the weights; rarities with nothing left are skipped
-    function pickMagic(pool, rarityWeights, used, weightOf) {
+    // What a magic item is worth, in gp: its price, or for an item with none (a custom item, say) the typical price of
+    // its rarity (the middle of the DMG's range). Infinity for an artifact, NaN when not even the rarity says.
+    const TYPICAL_PRICE = { common: 70, uncommon: 220, rare: 1600, 'very rare': 16000, legendary: 100000, artifact: Infinity };
+    function magicValue(item) {
+        const price = priceValue(magicPrice(item));
+        if (!Number.isNaN(price)) return price;
+        const rarity = rarityOf(item).match(/very rare|uncommon|common|rare|legendary|artifact/);
+        return rarity ? TYPICAL_PRICE[rarity[0]] : NaN;
+    }
+    // Shops and loot pick magic items by what they're worth, not their rarity: each wealth and party level weighs the
+    // DMG's price ranges, named after the rarity each belongs to ('rare' = 500 to 5,000 gp). So a 5,000 gp legendary
+    // potion turns up where 5,000 gp items do. Priceless items and items with no value are never picked.
+    const VALUE_BANDS = [['common', 0, 100], ['uncommon', 100, 500], ['rare', 500, 5000], ['very rare', 5000, 50000], ['legendary', 50000, Infinity]];
+    function valueBand(item) {
+        const value = magicValue(item);
+        const band = VALUE_BANDS.find(([, low, high]) => value >= low && value < high);
+        return band ? band[0] : null;
+    }
+
+    // A random magic item from the pool, its value range picked by the weights; ranges with nothing left are skipped
+    function pickMagic(pool, bandWeights, used, weightOf) {
         const left = pool.filter(item => !used.has(itemKey(item)));
+        const bands = new Map(left.map(item => [item, valueBand(item)]));
         const weights = {};
-        Object.entries(rarityWeights).forEach(([rarity, w]) => { if (left.some(item => rarityOf(item) === rarity)) weights[rarity] = w; });
-        const rarity = pickWeighted(weights);
-        return rarity ? pickItem(left.filter(item => rarityOf(item) === rarity), weightOf) : null;
+        Object.entries(bandWeights).forEach(([band, w]) => { if (left.some(item => bands.get(item) === band)) weights[band] = w; });
+        const band = pickWeighted(weights);
+        return band ? pickItem(left.filter(item => bands.get(item) === band), weightOf) : null;
     }
     function pickAny(pool, used, weightOf) {
         return pickItem(pool.filter(item => !used.has(itemKey(item))), weightOf);
@@ -2679,11 +2699,12 @@
                      favor: { regular: /\b(mirror|hourglass|spyglass|dice|playing card|music|bell)\b/i,
                               magic: /\b(figurine|beads?|marbles?|deck|whistle|horn|pipes|box|feather|coins?|toy|bell|dice|token|chimes?|charm|trinket|bottle|mirror|music|egg|key|lens|statuette|puzzle|cards?|doll|cube|sphere)\b/i },
                      // a travelling peddler's odds and ends: mostly cheap curiosities
-                     magicBoost: 0.1, prefer: item => (item.Rarity || '').toLowerCase() === 'common' },
+                     magicBoost: 0.1, prefer: item => valueBand(item) === 'common' },
         magic:     { regular: () => false, magic: () => true, magicOnly: true },
         any:       { regular: () => true, magic: () => true },
     };
-    // Wealth: the share of a shop's stock that is magic, how likely each rarity is, and the most a regular item may cost
+    // Wealth: the share of a shop's stock that is magic, how likely each value range is (see VALUE_BANDS: 'rare' means
+    // worth 500 to 5,000 gp), and the most a regular item may cost
     const WEALTH = {
         poor:         { magic: 0.05, rarities: { common: 1 }, maxCost: 10 },
         modest:       { magic: 0.2, rarities: { common: 3, uncommon: 1 }, maxCost: 50 },
@@ -2715,7 +2736,7 @@
         };
     }
 
-    // Loot: rarity by party level (roughly the DMG's treasure tables), filtered by the kind of loot
+    // Loot: how likely each value range is by party level (roughly the DMG's treasure tables), filtered by the kind of loot
     const LOOT_TIERS = {
         1: { common: 4, uncommon: 3, rare: 1 },
         2: { common: 1, uncommon: 4, rare: 3, 'very rare': 1 },
@@ -2812,11 +2833,14 @@
     }
     const valuablesLike = (type) => genItems().filter(item => isMundane(item) && (item.Type || '') === type);
 
-    // --- Spell scrolls (DMG spell scroll table; price = Xanathar's cost to scribe one) ---
+    // --- Spell scrolls (DMG spell scroll table). Price: one casting, about doubling each level up to 5th, then climbing
+    // faster, since only the world's few archmages can scribe the top levels and a 9th (True Resurrection, Wish) is
+    // what kings bid on. Still below lasting legendary items (Xanathar's scribing cost reaches 250,000 gp).
+    // Keep in step with the "Spell Scroll, <level>" rows of magicPrices.csv.
     const SCROLLS = [   // by spell level: rarity, save DC, attack bonus, price
-        ['common', 13, 5, '15 gp'], ['common', 13, 5, '25 gp'], ['uncommon', 13, 5, '250 gp'], ['uncommon', 15, 7, '500 gp'],
-        ['rare', 15, 7, '2,500 gp'], ['rare', 17, 9, '5,000 gp'], ['very rare', 17, 9, '15,000 gp'], ['very rare', 18, 10, '25,000 gp'],
-        ['very rare', 18, 10, '50,000 gp'], ['legendary', 19, 11, '250,000 gp'],
+        ['common', 13, 5, '15 gp'], ['common', 13, 5, '50 gp'], ['uncommon', 13, 5, '150 gp'], ['uncommon', 15, 7, '300 gp'],
+        ['rare', 15, 7, '600 gp'], ['rare', 17, 9, '1,200 gp'], ['very rare', 17, 9, '3,000 gp'], ['very rare', 18, 10, '7,500 gp'],
+        ['very rare', 18, 10, '20,000 gp'], ['legendary', 19, 11, '50,000 gp'],
     ];
     function makeScroll(spell) {
         const level = spellLevel(spell) ?? 0;
@@ -2999,11 +3023,12 @@
     }
 
     // What a shop's stock or a loot pile is worth, for the DM: regular items at their cost, magic items at their price,
-    // coins at their worth, each times how many there are. Priceless items and items with no price are named, not added.
+    // coins at their worth, each times how many there are (a magic item with no price at the typical price of its rarity).
+    // Priceless items and items with no value at all are named, not added.
     function generatedTotal() {
         let total = 0, priceless = 0, unpriced = 0;
         genList.forEach((item, i) => {
-            const value = isMundane(item) ? costInGp(item) : priceValue(magicPrice(item));
+            const value = isMundane(item) ? costInGp(item) : magicValue(item);
             if (value === Infinity) priceless++;
             else if (Number.isNaN(value)) unpriced++;
             else total += value * (genCounts[i] || 1);

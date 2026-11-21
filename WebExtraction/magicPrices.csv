@@ -5,7 +5,7 @@ Horn of Silent Alarm,common,3,,"A handy, rechargeable signal that only one ally 
 Medal of Wit,Common,2,,One use of advantage on Intelligence checks and saves
 Pipe of Remembrance,common,1,,A pure novelty: smoke that replays memories
 Sekolahian Worshipping Statuette,common,1,,A curiosity that nips tiny sea creatures
-"Spellwrought Tattoo, 1st",common,0,25 gp,"A one-use 1st-level spell, priced like a scroll of that level"
+"Spellwrought Tattoo, 1st",common,0,50 gp,"A one-use 1st-level spell, priced like a scroll of that level"
 Walloping Ammunition,common,4,,One shot that can knock a target prone
 Amulet of Proof Against Detection and Location,uncommon,7,,Permanent immunity to scrying and divination targeting
 "Barrier Tattoo, Uncommon",uncommon,7,,Permanent armor of 12 + Dex with no armor worn
@@ -14,7 +14,7 @@ Deck Of Wonder,Uncommon,3,,"Random minor boons and banes, as much a gamble as a 
 Dried Leech,uncommon,2,,One ammunition with a little damage over time
 Feywild Shard,uncommon,5,,A sorcerer's focus that improves wild magic surges
 Gloves of Thievery,uncommon,6,,"+5 to picking pockets and locks, and invisible while worn"
-Hat of Disguise,uncommon,6,,"Disguise Self at will, a staple for spies and rogues"
+Hat of Disguise,uncommon,10,,Any face at will; spies and nobles want it
 "Instrument of the Bards, Mac-Fuirmidh cittern",uncommon,6,,A bard's instrument with a handful of useful daily spells
 Mummy Rot Antidote,uncommon,3,,"Cures one very specific, deadly curse"
 Potion of Advantage,Uncommon,3,,One roll with advantage
@@ -44,7 +44,7 @@ Armor of Safeguarding,Very Rare,6,,More hit points and a protective rune spell
 Cauldron of Rebirth,very rare,5,,Brews healing potions and aids scrying for a druid or warlock
 Dimensional Loop,very rare,6,,"Darkvision, a save bonus and short blinks out of phase"
 Ghost Step Tattoo,very rare,6,,Become incorporeal for a moment several times a day
-Manual of Bodily Health,very rare,7,,Permanently +2 Constitution and its maximum
+Manual of Bodily Health,very rare,9,,Permanent +2 Constitution; the rich buy them for their heirs
 Orb of the Veil,very rare,6,,"+2 Wisdom, darkvision and more"
 Ring of Telekinesis,very rare,6,,"Telekinesis at will, but only on loose objects"
 Skull Helm,very rare,5,,Three resistances and a daily summon
@@ -54,7 +54,7 @@ Dragonstaff of Ahghairon,legendary,6,,Commands and wards against dragons
 Hide of the Feral Guardian,legendary,6,,Growing armor that ends as a strong legendary piece
 Luxon Beacon,legendary,4,,A powerful but immovable relic tied to reincarnation
 Pyxis of Pandemonium,legendary,3,,Short rests and Bless; more lore piece than treasure
-Scroll of the Comet,legendary,4,,One devastating comet strike
+Scroll of the Comet,legendary,8,,Destroys a city or an army in one strike
 "Talarith, Usable Only by the Reigar Who Created It",Legendary,-6,,Worthless to anyone but the reigar who made it
 Witchlight Vane,Legendary,5,,"A +3 mace with carnival magic, made for one owner"
 Daoud's Wondrous Lantern,artifact,0,,An artifact: not for sale
@@ -138,22 +138,22 @@ Scribe's Pen,common,2,,Visible or invisible writing; Mark of Scribing only
 Shield of Expression,common,1,,A shield with a changing face
 Shiftweave,common,3,,Five outfits in one
 Smoldering Armor,common,1,,Armor that smokes harmlessly
-"Spell Scroll, Cantrip",common,0,15 gp,Xanathar's cost to scribe a cantrip scroll
-"Spell Scroll, 1st",common,0,25 gp,Xanathar's cost to scribe a 1st-level scroll
-"Spell Scroll, 2nd",uncommon,0,250 gp,Xanathar's cost to scribe a 2nd-level scroll
-"Spell Scroll, 3rd",uncommon,0,500 gp,Xanathar's cost to scribe a 3rd-level scroll
-"Spell Scroll, 4th",rare,0,"2,500 gp",Xanathar's cost to scribe a 4th-level scroll
-"Spell Scroll, 5th",rare,0,"5,000 gp",Xanathar's cost to scribe a 5th-level scroll
-"Spell Scroll, 6th",very rare,0,"15,000 gp",Xanathar's cost to scribe a 6th-level scroll
-"Spell Scroll, 7th",very rare,0,"25,000 gp",Xanathar's cost to scribe a 7th-level scroll
-"Spell Scroll, 8th",very rare,0,"50,000 gp",Xanathar's cost to scribe an 8th-level scroll
-"Spell Scroll, 9th",legendary,0,"250,000 gp",Xanathar's cost to scribe a 9th-level scroll
+"Spell Scroll, Cantrip",common,0,15 gp,One cantrip casting
+"Spell Scroll, 1st",common,0,50 gp,One 1st-level casting; scroll prices double each level
+"Spell Scroll, 2nd",uncommon,0,150 gp,One 2nd-level casting; scroll prices double each level
+"Spell Scroll, 3rd",uncommon,0,300 gp,One 3rd-level casting; scroll prices double each level
+"Spell Scroll, 4th",rare,0,600 gp,One 4th-level casting; scroll prices double each level
+"Spell Scroll, 5th",rare,0,"1,200 gp",One 5th-level casting; scroll prices double each level
+"Spell Scroll, 6th",very rare,0,"3,000 gp",One 6th-level casting; few can scribe it
+"Spell Scroll, 7th",very rare,0,"7,500 gp",One 7th-level casting; only archmages can scribe it
+"Spell Scroll, 8th",very rare,0,"20,000 gp",One 8th-level casting; only archmages can scribe it
+"Spell Scroll, 9th",legendary,0,"50,000 gp","One 9th-level casting (True Resurrection, Wish); what kings bid on"
 Spellshard,common,3,,A crystal that stores a book's worth of text
 "Spellwrought Tattoo, Cantrip",common,0,15 gp,"A one-use cantrip, priced like a cantrip scroll"
-"Spellwrought Tattoo, 2nd",uncommon,0,250 gp,"A one-use 2nd-level spell, priced like a scroll of that level"
-"Spellwrought Tattoo, 3rd",uncommon,0,500 gp,"A one-use 3rd-level spell, priced like a scroll of that level"
-"Spellwrought Tattoo, 4th",rare,0,"2,500 gp","A one-use 4th-level spell, priced like a scroll of that level"
-"Spellwrought Tattoo, 5th",rare,0,"5,000 gp","A one-use 5th-level spell, priced like a scroll of that level"
+"Spellwrought Tattoo, 2nd",uncommon,0,150 gp,"A one-use 2nd-level spell, priced like a scroll of that level"
+"Spellwrought Tattoo, 3rd",uncommon,0,300 gp,"A one-use 3rd-level spell, priced like a scroll of that level"
+"Spellwrought Tattoo, 4th",rare,0,600 gp,"A one-use 4th-level spell, priced like a scroll of that level"
+"Spellwrought Tattoo, 5th",rare,0,"1,200 gp","A one-use 5th-level spell, priced like a scroll of that level"
 Staff of Adornment,common,1,,Makes a small object float as decoration
 Staff of Birdcalls,common,2,,Makes bird sounds
 Staff of Flowers,common,1,,Sprouts flowers
@@ -171,7 +171,7 @@ Wand of Scowls,common,1,,Makes someone scowl
 Wand of Smiles,common,1,,Makes someone smile
 Wand Sheath,common,5,,Holds a wand in a warforged's arm so it can't be taken
 Adamantine Armor,uncommon,6,,Critical hits against you become normal hits
-Alchemy Jug,uncommon,8,,"Endless water, acid, poison, oil and more; very versatile"
+Alchemy Jug,uncommon,15,,"Endless wine, honey, oil or acid: a business in a jug"
 Alchemy Jug (Blue),uncommon,4,,An alchemy jug that makes tea instead of acid or poison
 Alchemy Jug (Orange),uncommon,3,,An alchemy jug that makes soy sauce instead of acid or poison
 "All-Purpose Tool, +1",uncommon,7,,"An artificer's focus with +1 to spell attacks and DC, and any tool"
@@ -222,7 +222,7 @@ Cloak of the Manta Ray,uncommon,6,,Water breathing and a 60-foot swim speed
 Coiling Grasp Tattoo,uncommon,5,,Grabs and restrains with spectral tendrils
 Cracked Driftglobe,uncommon,1,,A weak Light spell only; nearly worthless
 Cursed Luckstone,uncommon,2,,A little luck that comes with a curse
-Decanter of Endless Water,uncommon,6,,"Endless fresh water, even a geyser"
+Decanter of Endless Water,uncommon,14,,Endless fresh water: priceless to a desert town or a ship
 Deck of Illusions,uncommon,4,,Illusory creatures from random cards
 Deck Of Miscellany,uncommon,5,,Draw useful mundane items
 "Dragon Vessel, Slumbering",uncommon,5,,Fills daily with a healing or climbing potion
@@ -266,7 +266,7 @@ Fabulist Gem,uncommon,4,,Fake coins and minor illusions
 "Figurine of Wondrous Power, Silver Raven",uncommon,4,,A raven messenger every other day
 "Figurine of Wondrous Power, Gold Canary",legendary,4,,"A giant canary mount, rare and odd"
 Finder's Goggles,uncommon,3,,Small Insight and tracking boosts; Mark of Finding only
-Gauntlets of Ogre Power,uncommon,8,,"Sets Strength to 19, superb for an uncommon item"
+Gauntlets of Ogre Power,uncommon,12,,"Sets Strength to 19, superb for an uncommon item"
 Gem of Brightness,uncommon,4,,Light beams that can blind
 Gloves of Missile Snaring,uncommon,5,,Catch arrows and cut ranged damage
 Gloves of Swimming and Climbing,uncommon,4,,Free climbing and swimming movement
@@ -285,7 +285,7 @@ Selesnya Keyrune,rare,3,,A dire wolf ally; guild members only
 Simic Keyrune,uncommon,3,,A sea-creature ally; guild members only
 Guild Signet,uncommon,4,,One guild spell
 Harkon's Bite,uncommon,3,,"+1 to checks and saves, but cursed with lycanthropy"
-Headband of Intellect,uncommon,8,,Sets Intelligence to 19
+Headband of Intellect,uncommon,12,,Sets Intelligence to 19
 Hellfire Weapon,uncommon,3,,A weapon that sends souls to Avernus; mostly flavor
 Helm of Comprehending Languages,uncommon,4,,Comprehend Languages at will
 Helm of Telepathy,uncommon,6,,"Detect Thoughts and telepathy, sometimes Suggestion"
@@ -321,9 +321,9 @@ Night Caller,uncommon,2,,A whistle that raises undead; dangerous and specific
 Oil of Slipperiness,uncommon,4,,"Freedom of movement for hours, or a grease slick"
 Paper Bird,uncommon,3,,A one-time flying message
 Pearl of Power,uncommon,8,,Regain a spell slot every day
-Periapt of Health,uncommon,3,,Immunity to disease
+Periapt of Health,uncommon,12,,Immunity to disease; nobles pay well in plague years
 Periapt of Wound Closure,uncommon,7,,Auto-stabilize and double hit dice healing
-Philter of Love,uncommon,1,,"A brief charm, mostly a plot device"
+Philter of Love,uncommon,7,,A love charm; sought by schemers and nobles
 Pipes of Haunting,uncommon,4,,Frighten nearby creatures a few times a day
 Pipes of the Sewers,uncommon,3,,Calls and commands rats
 Piwafwi,uncommon,7,,A Cloak of Elvenkind that sunlight can ruin
@@ -332,11 +332,11 @@ Plate Of Knight's Fellowship,uncommon,5,,Plate armor that summons a spirit ally
 Portal Compass,Uncommon,2,,Points to the last portal used
 Potion of Animal Friendship,uncommon,2,,An hour of Animal Friendship
 Potion of Fire Breath,uncommon,3,,A few fire breaths over an hour
-"Potion of Giant Strength, Hill Giant",uncommon,3,,One hour of Strength 21
-"Potion of Giant Strength, Frost/Stone Giant",rare,-1,,One hour of Strength 23
-"Potion of Giant Strength, Fire Giant",rare,1,,One hour of Strength 25
-"Potion of Giant Strength, Cloud Giant",very rare,-6,,One hour of Strength 27
-"Potion of Giant Strength, Storm Giant",legendary,-13,,"One hour of Strength 29; one use, far below other legendary items"
+"Potion of Giant Strength, Hill Giant",uncommon,6,,One hour of Strength 21
+"Potion of Giant Strength, Frost/Stone Giant",rare,1,,One hour of Strength 23
+"Potion of Giant Strength, Fire Giant",rare,4,,One hour of Strength 25
+"Potion of Giant Strength, Cloud Giant",very rare,-2,,One hour of Strength 27
+"Potion of Giant Strength, Storm Giant",legendary,-8,,"One hour of Strength 29; one use, but can win a boss fight"
 Potion of Growth,uncommon,4,,"Hours of enlargement, no concentration"
 Potion of Poison,uncommon,-2,,A trap disguised as a healing potion
 Potion Of Polychromy,Uncommon,1,,An hour of rainbow colors
@@ -376,7 +376,7 @@ Saddle of the Cavalier,uncommon,4,,Can't be unseated; attacks on your mount have
 "Scaled Ornament, Stirring",rare,6,,+1 AC and immunity to charm and fear
 "Scaled Ornament, Wakened",very rare,5,,Adds damage reduction against a dragon's breath type
 Seeker Dart,uncommon,3,,"A dart that homes in on a target, once"
-Sending Stones,uncommon,6,,A daily Sending between two stones
+Sending Stones,uncommon,14,,"Instant messages over any distance, for merchants, generals and spies"
 Sensory Stone,Uncommon,1,,Replays a sensation; a curiosity
 Sentinel Shield,uncommon,6,,Advantage on initiative and Perception
 Serpent Scale Armor,uncommon,6,,Medium armor that adds your full Dexterity
@@ -431,7 +431,7 @@ Witherbloom Primer,Uncommon,4,,Small bonuses to Nature and Survival
 "Wraps Of Unarmed Prowess, +3",very rare,7,,+3 magic unarmed strikes
 Acheron Blade,rare,5,,A +1 sword with necrotic damage and immunity to being frightened
 Alchemical Compendium,rare,6,,A wizard's spellbook with transmutation spells and potion making
-Amulet of Health,rare,4,,Sets Constitution to 19
+Amulet of Health,rare,5,,Sets Constitution to 19
 Amulet of Protection from Turning,rare,1,,Only matters to undead
 "Armor, +1",rare,8,,+1 AC on any armor
 "Armor, +2",very rare,8,,+2 AC on any armor
@@ -479,7 +479,7 @@ Corpse Slayer,rare,4,,+1 weapon that hurts undead badly
 Crown of the Wrath Bringer,Rare,4,,Frightens enemies you strike
 Crystal Blade,Rare,6,,A sword with radiant damage and healing charges
 Cube of Force,rare,7,,Force walls and barriers on command
-Daern's Instant Fortress,rare,8,,A fortress on command
+Daern's Instant Fortress,rare,14,,A stone tower in a minute; building a keep costs tens of thousands
 Dagger of Venom,rare,5,,A +1 dagger with a daily poison coating
 Deck Of Oracles,rare,4,,A daily omen that grants a bonus or a hint
 Delver's Claws,Rare,4,,A mountain-rune glove that digs and climbs
@@ -557,7 +557,7 @@ Lash of Immolation,Rare,4,,+1 fire whip
 Leather Golem Armor,rare,5,,+1 leather armor with spell resistance
 Loadstone,rare,-3,,A cursed stone that slows you; worth only as a 150 gp gem
 Luminous War Pick,Rare,4,,+1 war pick that glows
-Lyre of Building,rare,5,,A bard's lyre that builds and protects structures
+Lyre of Building,rare,10,,"Builds walls, roads and moats in hours, for a city or an army"
 Mace of Disruption,rare,6,,Destroys weak undead and fiends
 Mace of Smiting,rare,5,,"+1 mace, deadly against constructs"
 Mace of Terror,rare,5,,Frightens crowds a few times a day
@@ -587,7 +587,7 @@ Potion of Gaseous Form,rare,3,,"An hour as gas, with no concentration"
 Potion of Heroism,rare,3,,Bless and temporary hit points for an hour
 Potion of Maximum Power,rare,3,,One maximized spell
 Potion of Mind control (beast),rare,2,,One Dominate Beast
-Potion of Mind control (humanoid),rare,4,,One Dominate Person
+Potion of Mind control (humanoid),rare,7,,Control a duke or a king for an hour
 Potion of Mind control (monster),very rare,1,,One Dominate Monster
 Potion of Mind Reading,rare,1,,One Detect Thoughts
 Professor Orb,rare,4,,A talking orb that knows one field
@@ -630,7 +630,7 @@ Siren Song Lyre,rare,4,,A few charm spells a day
 Spelljamming Helm,Rare,9,,Lets a caster fly a ship through the skies and space
 Spider Staff,Rare,5,,A staff with poison damage and spider spells
 Staff of Charming,rare,5,,"Charm Person, Command and Comprehend Languages"
-Staff of Healing,rare,6,,Plenty of healing spells
+Staff of Healing,rare,7,,"A temple's daily healing, for years"
 Staff of Ruling,rare,5,,Commands and charms from a staff
 Staff of Swarming Insects,rare,4,,Insect Plague and other swarms
 Staff of the Ivory Claw,rare,5,,+1 to spell attacks with fire on critical hits
@@ -697,7 +697,7 @@ Clockwork Armor,very rare,5,,Heavy armor that can turn a d20 roll into a 10
 Conch of Teleportation,very rare,6,,"One Teleport, then it may break"
 Constantori's Portrait,Very Rare,2,,A painting that bestows minor fey charm
 Crown Of Whirling Comets,very rare,5,,Orbiting gems that attack and protect
-"Crystal Ball, Very Rare",very rare,6,,Scrying at will
+"Crystal Ball, Very Rare",very rare,8,,"Scrying on demand, a spymaster's treasure"
 "Crystal Ball, Legendary",legendary,3,,"Scrying with mind reading, telepathy or true seeing"
 Crystalline Chronicle,very rare,6,,A wizard's crystal spellbook with telepathic tricks
 Dancing Sword,very rare,5,,A sword that fights on its own
@@ -735,9 +735,9 @@ Lifewell Tattoo,very rare,6,,Necrotic resistance and a chance to cheat death
 Living Armor,very rare,4,,+1 armor that feeds on you
 Lord's Ensemble,very rare,3,,A Masked Lord's disguise with protections
 Lucent Destroyer,Very Rare,5,,A +1 radiant musket that needs no ammunition
-Manual of Gainful Exercise,very rare,7,,Permanently +2 Strength and its maximum
-Manual of Golems,very rare,5,,Instructions to build a golem
-Manual of Quickness of Action,very rare,7,,Permanently +2 Dexterity and its maximum
+Manual of Gainful Exercise,very rare,9,,Permanent +2 Strength; the rich buy them for their heirs
+Manual of Golems,very rare,7,,A golem guardian for a lord's vault
+Manual of Quickness of Action,very rare,9,,Permanent +2 Dexterity; the rich buy them for their heirs
 Mindblasting Cap,Very Rare,4,,A psychic cone blast
 Mindguard Crown,Very Rare,6,,Advantage on mental saves and psychic resistance
 Mirror of Life Trapping,very rare,5,,Traps creatures in a mirror
@@ -756,11 +756,11 @@ Peregrine Mask,very rare,2,,A 60-foot fly speed and advantage on initiative
 Polymorph Blade,very rare,3,,A sword that can polymorph on a natural 20
 Potion of Flying,very rare,-8,,One hour of flight
 Potion of Invisibility,very rare,-8,,One hour of invisibility
-Potion of Longevity,very rare,1,,"Turns back the years, with a risk"
+Potion of Longevity,very rare,8,,Nine years of youth back; the rich and old pay fortunes
 Potion of Possibility,very rare,-3,,Two rerolls
-Potion of Speed,very rare,-5,,One minute of haste
+Potion of Speed,very rare,-3,,One minute of haste
 Potion of Vitality,very rare,-3,,"Removes exhaustion, disease and poison"
-Reincarnation Dust,very rare,1,,One Reincarnate
+Reincarnation Dust,very rare,3,,"Brings back the dead, in a new body"
 Ring of Amity,Very Rare,4,,A bond that shares damage with a friend
 Ring of Red Fury,very rare,5,,Water breathing and a ruidium rage
 Ring of Regeneration,very rare,6,,Constant healing and regrown limbs
@@ -798,9 +798,9 @@ Sword of the Paruns,very rare,5,,A +1 sword with tactical tricks
 Thunderbuss,Very Rare,5,,A +1 thunder pistol that needs no ammunition
 Tidecaller Trident,very rare,5,,A +2 trident with water magic
 Timepiece of Travel,very rare,4,,"A save bonus, Longstrider and travel tricks"
-Tome of Clear Thought,very rare,7,,Permanently +2 Intelligence and its maximum
-Tome of Leadership and Influence,very rare,7,,Permanently +2 Charisma and its maximum
-Tome of Understanding,very rare,7,,Permanently +2 Wisdom and its maximum
+Tome of Clear Thought,very rare,9,,Permanent +2 Intelligence; the rich buy them for their heirs
+Tome of Leadership and Influence,very rare,9,,Permanent +2 Charisma; the rich buy them for their heirs
+Tome of Understanding,very rare,9,,Permanent +2 Wisdom; the rich buy them for their heirs
 Voyager Staff,very rare,5,,A +1 staff with travel spells
 Wand of Polymorph,very rare,7,,Polymorph from charges
 Watchful Helm,very rare,4,,+1 AC and alert even while asleep
@@ -884,7 +884,7 @@ Rod of Resurrection,legendary,6,,Heal and Resurrection from charges
 Ruby Weave Gem,Legendary,5,,A focus that recovers spell slots
 Ruinblade,legendary,4,,Moghadam's greatsword from the Tomb of Horrors
 Scarab of Protection,legendary,6,,Advantage on saves against spells and protection from necromancy
-Scroll of Tarrasque Summoning,legendary,3,,"Summons the tarrasque, once; for desperate times"
+Scroll of Tarrasque Summoning,legendary,10,,Unleashes the tarrasque: nearly impossible to make and able to end kingdoms
 Shard Solitaire,Legendary,4,,An unstable gem with planar powers
 Shield of the Blazing Dreadnought,Legendary,5,,A fire giant shield of lava
 Shield of the Hidden Lord,legendary,3,,A powerful shield that imprisons a pit fiend and tempts its bearer
@@ -1021,7 +1021,7 @@ Asp's Kiss,legendary,4,,A +2 double blade with poison
 Assassin’s Ring,rare,5,,Hidden poison chambers and tricks
 Assembling Armor,rare,6,,A pouch that becomes armor on command
 Atlas to Libation,common,3,,A map to the nearest tavern
-Aurochs Bracers,uncommon,9,,"Sets Strength to 19, with a charge"
+Aurochs Bracers,uncommon,13,,"Sets Strength to 19, with a charge"
 Axe of Chilling Fear,rare,4,,A +1 axe that frightens with cold
 Axe of Many Strikes,uncommon,5,,A +1 axe that stores blows for later
 Axe of the Ancients,uncommon,4,,A +1 axe with Thaumaturgy
@@ -1268,7 +1268,7 @@ Doppelganger Ointment,rare,5,,A day of shapeshifting per dose
 Draconic Diorama,common,1,,A tiny diorama with a dragon
 Dragonslaying Lance,legendary,4,,A +3 lance for slaying dragons
 Dragonstooth Blade,very rare,5,,A blade with a dragon's power
-Draught of Ambrosia,legendary,3,,Stops aging and cures infirmity
+Draught of Ambrosia,legendary,1,,Ten years without aging or infirmity; rulers would pay almost anything
 Draught of the Black Owl,common,5,,An hour as an owl
 Dread Caduceus,artifact,0,,An artifact: not for sale
 Dread Scarab,very rare,4,,A scarab of protection with a dark twist
@@ -1313,7 +1313,7 @@ Excalibur,legendary,8,,The legendary blade of the rightful ruler
 Excalibur’s Scabbard,legendary,2,,Resistance to nonmagical piercing and slashing; weak for legendary
 Explorer’s Chalk,common,4,,Marks that guide you back
 Exsanguinating Blade,rare,5,,A +1 double dagger that drains blood
-Extract of Dual-Mindedness,legendary,-10,,One minute of concentrating on two spells
+Extract of Dual-Mindedness,legendary,-8,,One minute of concentrating on two spells
 Eye of Elsewhere,legendary,4,,An orbiting eye that scouts
 Eye of Horus,uncommon,5,,Advantage against illusions and fear
 Eye of the Golden God,legendary,4,,A divine gem of power
@@ -1485,7 +1485,7 @@ Ironweed Rope,uncommon,3,,"A tough, hard-to-cut rope"
 Ivory Knights,uncommon,4,,Telepathic chess pieces
 Ivy Crown of Prophecy,rare,4,,A daily Divination
 Jade Tiger,uncommon,4,,Weretiger tracking skill
-Járngreipr,rare,3,,"Strength 19 gauntlets, needed for Mjölnir"
+Járngreipr,rare,5,,"Strength 19 gauntlets, needed for Mjölnir"
 Jarred Brain,uncommon,3,,Flashes of a brain's knowledge
 Javelin of Teleportation,uncommon,5,,A +1 javelin that teleports targets
 Jeweler's Anvil,uncommon,3,,Helps craft jewelry
