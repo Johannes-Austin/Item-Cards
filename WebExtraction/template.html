@@ -142,6 +142,7 @@
         .recent-items .recent-clear { border: 0; background: none; color: #888; padding: 2px 4px; }
         .art-controls { margin-left: 10px; white-space: nowrap; }
         .art-controls button { padding: 2px 8px; font-size: 12px; }
+        .art-cards-setting { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 14px; cursor: pointer; }
         .art-load { cursor: pointer; color: #1d4f9c; text-decoration: underline; }
         #modalArtBox { display: none; text-align: center; margin: 12px 0 0; }
         #modalArt { max-width: 100%; max-height: 45vh; border-radius: 6px; cursor: zoom-in; }
@@ -287,6 +288,11 @@
         .box-attunement .dynamic-text { white-space: nowrap; }  /* always one line; the text shrinks to fit instead */
         .box-desc { top: 23%; height: 69%; font-size: 9pt; line-height: 1.1; justify-content: flex-start; }
         .box-desc .dynamic-text { text-align: left; }
+        /* Art card: the whole panel inside the frame's inner line is white (measured on the card backgrounds, which all
+           share the frame), with the art centered on it, so there's no visible edge around the picture */
+        .box-art { position: absolute; left: 7.47%; top: 22.1%; width: 85.07%; height: 70.86%; background: #fff;
+                   display: flex; justify-content: center; align-items: center; padding: 3%; box-sizing: border-box; }
+        .box-art img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
         .box-source { bottom: 2.5%; height: 4%; font-size: 5pt; color: #333; justify-content: flex-end; }
         .box-source .dynamic-text { white-space: nowrap; }  /* one line; shrinks if the source name is long */
 
@@ -422,6 +428,9 @@
         <label style="display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 14px; cursor: pointer;">
             <input type="checkbox" id="breakCards" checked> Break into multiple cards
         </label>
+        <label id="addArtCardRow" style="display: none; align-items: center; gap: 6px; margin-top: 6px; font-size: 14px; cursor: pointer;" title="An item with art gets one more card: the same card with its art where the text goes">
+            <input type="checkbox" id="addArtCard" checked> Add art card
+        </label>
         <label style="display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 14px; cursor: pointer;" title="Empty boxes on items with charges (wands, staffs...), to tick off with a pencil">
             <input type="checkbox" id="showCharges" checked> Show charge boxes
         </label>
@@ -444,10 +453,16 @@
             <button role="tab" data-tab="magic" onclick="setTab('magic')">Magic Items <span class="tab-count"></span></button>
             <button role="tab" data-tab="regular" onclick="setTab('regular')">Regular Items <span class="tab-count"></span></button>
             <button role="tab" data-tab="spells" onclick="setTab('spells')">Spells <span class="tab-count"></span></button>
+            <button role="tab" data-tab="rules" onclick="setTab('rules')">Rules <span class="tab-count"></span></button>
         </div>
 
         <!-- Category Filters (Regular Items tab) -->
         <div class="filter-group" id="categoryFilters">
+            <strong style="width: 100%;">Filter by Category:</strong>
+        </div>
+
+        <!-- Rule Filters (Rules tab): conditions, movement, combat... -->
+        <div class="filter-group" id="ruleFilters">
             <strong style="width: 100%;">Filter by Category:</strong>
         </div>
 
@@ -596,6 +611,7 @@
                 <button role="tab" data-kind="magic" onclick="setEditorKind('magic')">Magic Item</button>
                 <button role="tab" data-kind="regular" onclick="setEditorKind('regular')">Regular Item</button>
                 <button role="tab" data-kind="spell" onclick="setEditorKind('spell')">Spell</button>
+                <button role="tab" data-kind="rule" onclick="setEditorKind('rule')">Rule</button>
             </div>
             <label>Name <input type="text" id="edName" placeholder="Sword of Example"></label>
             <div class="editor-row">
@@ -716,6 +732,9 @@
                     <button type="button" class="btn-secondary" onclick="forgetArt()">Forget</button></span>
                 <span id="artMessage" role="status"></span>
             </span>
+            <label class="art-cards-setting" title="An item with art gets a second card: the same card with its art where the text goes">
+                <input type="checkbox" id="artCardsSetting"> Include art cards (adds an "Add art card" box under the card preview)
+            </label>
         </section>
 
         <section class="settings-section">
@@ -872,6 +891,7 @@
 <script id="embeddedSpellsCsv" type="application/json">""</script>
 <script id="embeddedSecondaryCsv" type="application/json">""</script>
 <script id="embeddedSecondarySpellsCsv" type="application/json">""</script>
+<script id="embeddedRulesCsv" type="application/json">""</script>
 <!-- Personal items (griffonsSaddlebag.csv), encrypted by build_single_html.py: unreadable without the passphrase -->
 <script id="embeddedPersonal" type="application/json">null</script>
 
@@ -1024,7 +1044,7 @@
     function sourceCounts() {
         const counts = new Map();
         allItems.forEach(item => item.sources.forEach(s => {
-            if (!counts.has(s)) counts.set(s, { magic: 0, regular: 0, spells: 0 });
+            if (!counts.has(s)) counts.set(s, { magic: 0, regular: 0, spells: 0, rules: 0 });
             counts.get(s)[itemTab(item)]++;
         }));
         return counts;
@@ -1052,7 +1072,7 @@
             const c = counts.get(name);
             const kinds = document.createElement('span');
             kinds.className = 'source-kinds';
-            kinds.textContent = [[c.magic, 'magic'], [c.regular, 'regular'], [c.spells, c.spells === 1 ? 'spell' : 'spells']]
+            kinds.textContent = [[c.magic, 'magic'], [c.regular, 'regular'], [c.spells, c.spells === 1 ? 'spell' : 'spells'], [c.rules, c.rules === 1 ? 'rule' : 'rules']]
                 .filter(([n]) => n).map(([n, word]) => `${n.toLocaleString()} ${word}`).join(' · ');
             const text = document.createElement('span');
             text.append(`${name} `, kinds);
@@ -1087,7 +1107,7 @@
     // The line above the item list: what this tab shows, out of what the page has, and the sources in use
     function updateDataSummary(sourceTotal, sourcesTicked) {
         const all = tabItems(), shown = all.filter(inTickedSources).length;
-        const noun = { magic: 'magic items', regular: 'regular items', spells: 'spells' }[currentTab];
+        const noun = TAB_NOUNS[currentTab];
         document.getElementById('dataSummary').textContent =
             (shown === all.length ? `${all.length.toLocaleString()} ${noun}` : `${shown.toLocaleString()} of ${all.length.toLocaleString()} ${noun}`)
             + ` · ${sourcesTicked === sourceTotal ? `all ${sourceTotal}` : `${sourcesTicked} of ${sourceTotal}`} sources`
@@ -1263,7 +1283,17 @@
     const isMundane = (item) => (item.Rarity || '').trim().toLowerCase() === 'mundane';
     // Spells have the rarity "spell" and extra columns (Level, School, CastingTime, Range, Components, Duration, Classes)
     const isSpell = (item) => (item.Rarity || '').trim().toLowerCase() === 'spell';
-    const itemTab = (item) => isSpell(item) ? 'spells' : isMundane(item) ? 'regular' : 'magic';
+    // Rules reference cards (rules.csv: conditions, swimming, cover...) have the rarity "rule" and their category as the Type
+    const isRule = (item) => (item.Rarity || '').trim().toLowerCase() === 'rule';
+    const itemTab = (item) => isSpell(item) ? 'spells' : isMundane(item) ? 'regular' : isRule(item) ? 'rules' : 'magic';
+    const TAB_NOUNS = { magic: 'magic items', regular: 'regular items', spells: 'spells', rules: 'rules' };
+    // A rule's first sentence, for its row in the list
+    function ruleSummary(item) {
+        const line = (item.Description || '').split('\n').map(l => l.replace(/\*\*/g, '').replace(/^[\s•]+/, '').trim())
+            .find(l => l && !l.startsWith('|')) || '';
+        const sentence = line.split(/(?<=\.)\s/)[0];
+        return sentence.length > 90 ? sentence.slice(0, 88).replace(/\s+\S*$/, '') + '…' : sentence;
+    }
     let currentTab = 'magic';
     const tabItems = () => allItems.filter(item => itemTab(item) === currentTab);
 
@@ -1277,14 +1307,17 @@
         document.getElementById('magicTypeDetails').style.display = tab === 'magic' ? '' : 'none';
         document.getElementById('priceFilter').style.display = tab === 'magic' ? '' : 'none';
         document.getElementById('categoryFilters').style.display = tab === 'regular' ? '' : 'none';
+        document.getElementById('ruleFilters').style.display = tab === 'rules' ? '' : 'none';
         document.getElementById('spellFilters').style.display = tab === 'spells' ? '' : 'none';
-        document.getElementById('secondColumnHeader').textContent = { magic: 'Rarity', regular: 'Cost', spells: 'Level' }[tab];
-        document.getElementById('thirdColumnHeader').textContent = tab === 'spells' ? 'School' : 'Type';
+        document.getElementById('secondColumnHeader').textContent = { magic: 'Rarity', regular: 'Cost', spells: 'Level', rules: 'Category' }[tab];
+        document.getElementById('thirdColumnHeader').textContent = { spells: 'School', rules: 'Summary' }[tab] || 'Type';
         document.getElementById('catalogTable').classList.toggle('show-price', tab === 'magic');
         if (catalogSort.key === 'price' && tab !== 'magic') catalogSort = { key: null, dir: null };
         showSortArrows();
-        document.getElementById('searchInput').placeholder = tab === 'spells' ? 'Search spells by name, school or class...' : 'Search items by name or type...';
+        document.getElementById('searchInput').placeholder = { spells: 'Search spells by name, school or class...', rules: 'Search rules (e.g. prone, swimming, cover)...' }[tab]
+            || 'Search items by name or type...';
         if (tab === 'spells') renderSpellFilters();
+        if (tab === 'rules') renderRuleFilters();
         renderSourceFilters();
         applyFilters();
     }
@@ -1329,7 +1362,13 @@
             box.appendChild(label);
         });
     }
-    const uncheckedCategories = new Set(), uncheckedMagicTypes = new Set();
+    const uncheckedCategories = new Set(), uncheckedMagicTypes = new Set(), uncheckedRuleCategories = new Set();
+    // The rules' categories are their Types (Condition, Movement, Combat...), in the order they first appear
+    const ruleCategory = (item) => (item.Type || '').trim() || 'Other';
+    function renderRuleFilters() {
+        const names = [...new Set(allItems.filter(isRule).map(ruleCategory))];
+        renderCheckboxFilters('ruleFilters', names, uncheckedRuleCategories);
+    }
     renderCheckboxFilters('categoryFilters', [OTHER_CATEGORY, ...REGULAR_CATEGORIES.map(([name]) => name)], uncheckedCategories);
     renderCheckboxFilters('magicTypeFilters', [...MAGIC_TYPES.map(([name]) => name), OTHER_MAGIC_TYPE], uncheckedMagicTypes);
 
@@ -1528,7 +1567,7 @@
     }
 
     function updateTabCounts() {
-        const counts = { magic: 0, regular: 0, spells: 0 };
+        const counts = { magic: 0, regular: 0, spells: 0, rules: 0 };
         allItems.forEach(item => counts[itemTab(item)]++);
         document.querySelectorAll('.catalog-tabs button').forEach(b => {
             b.querySelector('.tab-count').textContent = counts[b.dataset.tab] ? `(${counts[b.dataset.tab]})` : '';
@@ -1542,11 +1581,15 @@
         const filtered = tabItems().filter(item => {
             const matchesText = (item.Name && item.Name.toLowerCase().includes(term)) ||
                                 (item.Type && item.Type.toLowerCase().includes(term)) ||
-                                (isSpell(item) && (item.Classes || '').toLowerCase().includes(term));
+                                (isSpell(item) && (item.Classes || '').toLowerCase().includes(term)) ||
+                                // a rule is also found by its text ("prone" finds Shoving and Falling too)
+                                (isRule(item) && (item.Description || '').toLowerCase().includes(term));
 
             let matchesGroup;
             if (currentTab === 'spells') {
                 matchesGroup = spellMatchesFilters(item);
+            } else if (currentTab === 'rules') {
+                matchesGroup = !uncheckedRuleCategories.has(ruleCategory(item));
             } else if (currentTab === 'regular') {
                 matchesGroup = !uncheckedCategories.has(itemCategory(item));
             } else {
@@ -1569,7 +1612,7 @@
         if (currentTab === 'spells') updateSpellFilterSummary();
 
         const empty = document.getElementById('catalogEmpty');
-        empty.textContent = !tabItems().length ? (currentTab === 'spells' ? 'There are no spells here yet.' : 'There are no items here yet.')
+        empty.textContent = !tabItems().length ? `There are no ${currentTab === 'spells' || currentTab === 'rules' ? currentTab : 'items'} here yet.`
             : !filtered.length ? 'Nothing matches the search and filters.' : '';
         empty.style.display = empty.textContent ? 'block' : 'none';
     }
@@ -1584,9 +1627,10 @@
     const RARITY_ORDER = ['common', 'uncommon', 'rare', 'very rare', 'legendary', 'artifact'];
     function sortValue(item, key) {
         if (key === 'name') return (item.Name || '').toLowerCase();
-        if (key === 'type') return (isSpell(item) ? spellSchool(item) : item.Type || '').toLowerCase();
+        if (key === 'type') return (isSpell(item) ? spellSchool(item) : isRule(item) ? ruleSummary(item) : item.Type || '').toLowerCase();
         if (key === 'price') return priceValue(magicPrice(item));
         if (isSpell(item)) return spellLevel(item) ?? NaN;
+        if (isRule(item)) return ruleCategory(item).toLowerCase();
         if (isMundane(item)) return costInGp(item);
         const rarity = (item.Rarity || '').toLowerCase().trim();   // by rarity, then by price within it
         const rank = RARITY_ORDER.indexOf(rarity);
@@ -1623,10 +1667,11 @@
         items = sortedForCatalog(items);
         tbody.innerHTML = items.map(item => `
             <tr class="item-row${item.id === selectedId ? ' selected' : ''}" data-id="${item.id}" onclick="selectItem(${item.id})">
-                <td><strong>${item.Name}</strong>${item.edited ? '<span class="custom-badge edited">edited</span>' : item.custom ? '<span class="custom-badge">custom</span>' : ''}<div class="mobile-type">${isSpell(item) ? spellSchoolHtml(item) : item.Type || ''}</div></td>
+                <td><strong>${item.Name}</strong>${item.edited ? '<span class="custom-badge edited">edited</span>' : item.custom ? '<span class="custom-badge">custom</span>' : ''}<div class="mobile-type">${isSpell(item) ? spellSchoolHtml(item) : isRule(item) ? escapeHtml(ruleSummary(item)) : item.Type || ''}</div></td>
                 ${isSpell(item) ? `<td>${LEVEL_NAMES[spellLevel(item)] ?? '—'}</td>`
-                  : isMundane(item) ? `<td>${escapeHtml(item.Attunement || '—')}</td>` : `<td style="text-transform: capitalize;">${item.Rarity}</td>`}
-                <td>${isSpell(item) ? spellSchoolHtml(item) : item.Type}</td>
+                  : isMundane(item) ? `<td>${escapeHtml(item.Attunement || '—')}</td>`
+                  : isRule(item) ? `<td>${escapeHtml(ruleCategory(item))}</td>` : `<td style="text-transform: capitalize;">${item.Rarity}</td>`}
+                <td>${isSpell(item) ? spellSchoolHtml(item) : isRule(item) ? `<span class="rule-summary">${escapeHtml(ruleSummary(item))}</span>` : item.Type}</td>
                 <td class="col-price">${escapeHtml(magicPrice(item)) || '—'}</td>
                 <td><button class="btn-add" onclick="event.stopPropagation(); addToQueue(${item.id})">+ Add</button></td>
             </tr>
@@ -1654,7 +1699,8 @@
             <div class="box box-name"><div class="dynamic-text" data-max-size="20">${item.Name}</div></div>
             <div class="box box-type"><div class="dynamic-text" data-max-size="9">${item.Type}</div></div>
             <div class="box box-attunement"><div class="dynamic-text" data-max-size="8" data-preferred-min="6">${isSpell(item) ? escapeHtml(item.Classes || '') : isMundane(item) ? escapeHtml(item.Attunement || '') : item.Attunement !== 'No Attunement' ? formatAttunement(item.Attunement) : ''}</div></div>
-            <div class="box box-desc"><div class="dynamic-text" data-max-size="${spec.maxSize || 8}">${spec.descHtml}</div></div>
+            ${spec.art ? '<div class="box-art"><img alt=""></div>'
+                : `<div class="box box-desc"><div class="dynamic-text" data-max-size="${spec.maxSize || 8}">${spec.descHtml}</div></div>`}
             <div class="box box-source"><div class="dynamic-text" data-max-size="5">${item.Source || ''}${spec.pages > 1 ? ` · Card ${spec.page} of ${spec.pages}` : ''}</div></div>
         `;
 
@@ -1663,6 +1709,12 @@
         if (attunementEl.textContent) {
             attunementEl.dataset.full = attunementEl.textContent;
             attunementEl.dataset.alt = attunementEl.textContent.replace(/^Requires Attunement by (an? |the )?/i, 'Attunement: ');
+        }
+        if (spec.art) {
+            const img = cardDiv.querySelector('.box-art img');
+            img.alt = `Art for ${item.Name}`;
+            if (artCardUrls.has(spec.art)) img.src = artCardUrls.get(spec.art);
+            else artCardUrl(spec.art).then(url => { if (url) img.src = url; });
         }
         return cardDiv;
     }
@@ -1922,7 +1974,16 @@
     //  - "Break into multiple cards" ticked: several cards, all at the same text size
     //  - unticked: one card that says "See <source>"
     // Charge boxes go at the end of the text, so they're on the last card.
+    // With art cards on (Data & Settings, and "Add art card" ticked), an item with art gets one more card after them:
+    // the same card with the art where the text goes, numbered with the rest ("Card 2 of 2").
     function getCardSpecs(item) {
+        const specs = textCardSpecs(item);
+        const art = artCardsWanted() ? itemArtKey(item) : null;
+        if (!art) return specs;
+        const pages = specs.length + 1;
+        return [...specs.map((spec, i) => ({ ...spec, page: i + 1, pages })), { item, art, page: pages, pages }];
+    }
+    function textCardSpecs(item) {
         const charges = showCharges ? itemCharges(item) : 0;
         const blocks = descriptionBlocks(cardDescription(item));
         if (charges) blocks.push({ kind: 'block', html: chargeBoxesHtml(charges) });
@@ -2041,7 +2102,7 @@
     function showItemDetails(id) {
         const item = typeof id === 'object' ? id : allItems.find(i => i.id === id);
         document.getElementById('modalName').innerText = item.Name;
-        document.getElementById('modalRarity').innerText = isSpell(item) ? 'Spell' : isMundane(item) ? 'Regular item' : item.Rarity;
+        document.getElementById('modalRarity').innerText = isSpell(item) ? 'Spell' : isMundane(item) ? 'Regular item' : isRule(item) ? 'Rule' : item.Rarity;
         document.getElementById('modalType').innerText = item.Type;
         document.getElementById('modalAttunement').innerText = isSpell(item) ? (item.Classes || '')
             : isMundane(item) ? (item.Attunement ? `Cost: ${item.Attunement}` : '') : formatAttunement(item.Attunement);
@@ -2151,7 +2212,39 @@
         document.getElementById('artLoaded').style.display = artKeys.size ? '' : 'none';
         document.getElementById('artCount').textContent = artKeys.size.toLocaleString();
         document.getElementById('artLoadLabel').style.display = artKeys.size ? 'none' : '';
+        // Art loaded or forgotten: the art cards of shown and queued items come or go with it
+        artCardUrls.forEach(url => URL.revokeObjectURL(url));
+        artCardUrls.clear();
+        refreshCards();
     }
+
+    // --- Art cards: an item with art gets one more card, its art where the text goes (see getCardSpecs) ---
+    // "Include art cards" in Data & Settings (off at first) shows the "Add art card" box under the preview (ticked at first)
+    const ART_CARDS_KEY = 'cardMaker.artCards', ADD_ART_CARD_KEY = 'cardMaker.addArtCard';
+    const artCardUrls = new Map();   // art key -> a URL for its image, shared by every card that shows it
+    async function artCardUrl(key) {
+        if (artCardUrls.has(key)) return artCardUrls.get(key);
+        const blob = await getArt(key).catch(() => null);
+        if (!blob) return null;
+        if (!artCardUrls.has(key)) artCardUrls.set(key, URL.createObjectURL(blob));
+        return artCardUrls.get(key);
+    }
+    const artCardsWanted = () => document.getElementById('artCardsSetting').checked && document.getElementById('addArtCard').checked;
+    function showAddArtCardRow() {
+        document.getElementById('addArtCardRow').style.display = document.getElementById('artCardsSetting').checked ? 'flex' : 'none';
+    }
+    try {
+        document.getElementById('artCardsSetting').checked = localStorage.getItem(ART_CARDS_KEY) === 'true';
+        document.getElementById('addArtCard').checked = localStorage.getItem(ADD_ART_CARD_KEY) !== 'false';
+    } catch (err) { }
+    showAddArtCardRow();
+    [['artCardsSetting', ART_CARDS_KEY], ['addArtCard', ADD_ART_CARD_KEY]].forEach(([id, key]) => {
+        document.getElementById(id).addEventListener('change', (e) => {
+            try { localStorage.setItem(key, String(e.target.checked)); } catch (err) { }
+            showAddArtCardRow();
+            refreshCards();
+        });
+    });
 
     // The art (if any) in the item details window
     async function showItemArt(item) {
@@ -2401,7 +2494,7 @@
 
     // The editor's Magic Item / Regular Item / Spell tabs. Each kind shows its own fields:
     //   magic: Rarity, Type, Attunement     regular: Type, Cost     spell: Level, School, Classes, casting details
-    const EDITOR_KINDS = { magic: 'magic', regular: 'regular', spells: 'spell' };   // list tab -> editor kind
+    const EDITOR_KINDS = { magic: 'magic', regular: 'regular', spells: 'spell', rules: 'rule' };   // list tab -> editor kind
     let editorKind = 'magic', editorTitle = null;   // editorTitle: null for a new card (the title then names the kind)
     function setEditorKind(kind) {
         editorKind = kind;
@@ -2410,9 +2503,9 @@
             b.setAttribute('aria-selected', b.dataset.kind === kind);
         });
         document.getElementById('editorTitle').textContent = editorTitle
-            || { magic: 'Create Magic Item', regular: 'Create Regular Item', spell: 'Create Spell' }[kind];
-        document.getElementById('edName').placeholder = { magic: 'Sword of Example', regular: 'Iron Pot', spell: 'Example Bolt' }[kind];
-        document.getElementById('edType').placeholder = kind === 'regular' ? 'Adventuring Gear' : 'Wondrous item';
+            || { magic: 'Create Magic Item', regular: 'Create Regular Item', spell: 'Create Spell', rule: 'Create Rule' }[kind];
+        document.getElementById('edName').placeholder = { magic: 'Sword of Example', regular: 'Iron Pot', spell: 'Example Bolt', rule: 'Underwater Combat' }[kind];
+        document.getElementById('edType').placeholder = { regular: 'Adventuring Gear', rule: 'Combat (the category it is filtered by)' }[kind] || 'Wondrous item';
         updateAttunementField();
         updateEditorPreview();
     }
@@ -2425,7 +2518,7 @@
         show('edRarityLabel', editorKind === 'magic');
         show('edTypeLabel', editorKind !== 'spell');   // a spell's type line is made from its level and school
         show('edAttuneRow', editorKind === 'magic');
-        show('edCostRow', editorKind !== 'spell');   // a regular item's cost, or a magic item's price
+        show('edCostRow', editorKind === 'magic' || editorKind === 'regular');   // a regular item's cost, or a magic item's price
         show('edSpellFields', editorKind === 'spell');
     }
 
@@ -2439,9 +2532,9 @@
 
     // The item as currently typed into the editor
     function readEditor() {
-        const rarity = editorKind === 'spell' ? 'spell' : editorKind === 'regular' ? 'mundane' : document.getElementById('edRarity').value;
+        const rarity = { spell: 'spell', regular: 'mundane', rule: 'rule' }[editorKind] || document.getElementById('edRarity').value;
         const by = document.getElementById('edAttuneBy').value.trim().replace(/^by\s+/i, '');
-        const attunement = rarity === 'spell' ? ''
+        const attunement = rarity === 'spell' || rarity === 'rule' ? ''
             : rarity === 'mundane' ? document.getElementById('edCost').value.trim()
             : document.getElementById('edAttune').value !== 'yes' ? 'No Attunement'
             : by ? `requires attunement by ${by}` : 'requires attunement';
@@ -2454,7 +2547,7 @@
             Description: document.getElementById('edDesc').value.replace(/\s+$/, ''),
             URL: editorBaseUrl,
             Notes: '',
-            Price: rarity === 'spell' || rarity === 'mundane' ? '' : document.getElementById('edCost').value.trim()
+            Price: rarity === 'spell' || rarity === 'mundane' || rarity === 'rule' ? '' : document.getElementById('edCost').value.trim()
         };
         if (rarity === 'spell') {
             const value = (id) => document.getElementById(id).value.trim();
@@ -3096,6 +3189,9 @@
         styleTag.innerHTML = layout === 'sheet' ? '@media print { @page { size: letter; margin: 0; } }' : '@media print { @page { size: 2.5in 3.5in; margin: 0; } }';
         document.head.appendChild(styleTag);
 
+        // Art cards: have every image ready, so each card shows its art the moment it's built
+        await Promise.all([...new Set(cards.filter(spec => spec.art).map(spec => spec.art))].map(artCardUrl));
+
         const printContainer = document.getElementById('printContainer');
         printContainer.innerHTML = '';
 
@@ -3115,7 +3211,8 @@
         printContainer.style.left = '-9999px';
         printContainer.style.display = 'block';
 
-        // Wait briefly for the DOM to render the boxes before measuring
+        // Wait for the art images to be decoded and the DOM to render the boxes before measuring
+        await Promise.all([...printContainer.querySelectorAll('.box-art img')].map(img => img.decode().catch(() => { })));
         setTimeout(() => {
             fitText(printContainer);
 
@@ -3138,7 +3235,7 @@
 
     // --- 9. Load the items embedded in this file, plus this browser's saved custom and CSV items ---
     loadSavedItems();
-    ['embeddedCsv', 'embeddedMundaneCsv', 'embeddedSpellsCsv', 'embeddedSecondaryCsv', 'embeddedSecondarySpellsCsv'].forEach(elementId => {
+    ['embeddedCsv', 'embeddedMundaneCsv', 'embeddedSpellsCsv', 'embeddedSecondaryCsv', 'embeddedSecondarySpellsCsv', 'embeddedRulesCsv'].forEach(elementId => {
         try {
             const embedded = JSON.parse(document.getElementById(elementId).textContent || '""');
             const secondary = elementId.startsWith('embeddedSecondary');

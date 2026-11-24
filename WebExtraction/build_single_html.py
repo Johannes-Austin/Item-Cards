@@ -133,13 +133,14 @@ def ask_passphrase():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Embed items.csv, mundaneItems.csv, spells.csv, open5eItems.csv and open5eSpells.csv into the card maker HTML to make one file.")
+    parser = argparse.ArgumentParser(description="Embed items.csv, mundaneItems.csv, spells.csv, open5eItems.csv, open5eSpells.csv and rules.csv into the card maker HTML to make one file.")
     parser.add_argument("--template", default=os.path.join(HERE, "template.html"), help="the card maker template HTML (default: template.html)")
     parser.add_argument("--csv", default=os.path.join(HERE, "items.csv"), help="the magic items CSV to embed (default: items.csv)")
     parser.add_argument("--mundane-csv", default=os.path.join(HERE, "mundaneItems.csv"), help="the regular items CSV to embed (default: mundaneItems.csv; skipped if it doesn't exist)")
     parser.add_argument("--spells-csv", default=os.path.join(HERE, "spells.csv"), help="the spells CSV to embed (default: spells.csv; skipped if it doesn't exist)")
     parser.add_argument("--secondary-csv", default=os.path.join(HERE, "open5eItems.csv"), help="the secondary (third-party) items CSV to embed (default: open5eItems.csv; skipped if it doesn't exist)")
     parser.add_argument("--secondary-spells-csv", default=os.path.join(HERE, "open5eSpells.csv"), help="the secondary (third-party) spells CSV to embed (default: open5eSpells.csv; skipped if it doesn't exist)")
+    parser.add_argument("--rules-csv", default=os.path.join(HERE, "rules.csv"), help="the rules reference cards to embed (default: rules.csv; skipped if it doesn't exist)")
     parser.add_argument("--personal-csv", default=os.path.join(HERE, "griffonsSaddlebag.csv"), help="personal items to embed encrypted, unlocked with a passphrase (default: griffonsSaddlebag.csv; skipped if it doesn't exist)")
     parser.add_argument("--out", default=os.path.join(OUT_DIR, "index.html"), help="the HTML file to create (default: index.html in the main CardHTML folder)")
     args = parser.parse_args()
@@ -156,11 +157,12 @@ def main():
     for element_id, path, label, bat in (("embeddedMundaneCsv", args.mundane_csv, "regular items", "RunMundaneGather.BAT"),
                                          ("embeddedSpellsCsv", args.spells_csv, "spells", "RunSpellGather.BAT"),
                                          ("embeddedSecondaryCsv", args.secondary_csv, "secondary items", "RunOpen5eGather.BAT"),
-                                         ("embeddedSecondarySpellsCsv", args.secondary_spells_csv, "secondary spells", "RunOpen5eGather.BAT")):
+                                         ("embeddedSecondarySpellsCsv", args.secondary_spells_csv, "secondary spells", "RunOpen5eGather.BAT"),
+                                         ("embeddedRulesCsv", args.rules_csv, "rules", None)):
         if os.path.exists(path):
             embeds.append((element_id, path, label))
         else:
-            print(f"Warning: {path} not found, so the page will have no {label}. Run {bat} to create it.")
+            print(f"Warning: {path} not found, so the page will have no {label}." + (f" Run {bat} to create it." if bat else ""))
 
     with open(args.template, "r", encoding="utf-8", newline="") as f:
         output = f.read()
